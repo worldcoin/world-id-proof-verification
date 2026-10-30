@@ -1,0 +1,29 @@
+# Send only the inputs required by the Dockerfile. This excludes Git metadata,
+# deployment files, local settings, build output, and nested worktrees by default.
+**
+!Cargo.toml
+!Cargo.lock
+!src/
+!src/**
+!api-types/
+!api-types/Cargo.toml
+!api-types/src/
+!api-types/src/**
+!client/
+!client/Cargo.toml
+!client/src/
+!client/src/**
+
+# Keep local configuration and credentials out even inside source directories.
+**/.env
+**/.env.*
+**/env.local
+**/.aws
+**/.git
+**/.local
+**/target
+**/worktrees
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Keep unspecified settings inherited; inspect the resolved config with @coderabbitai configuration.
+inheritance: true
+reviews: 
+  profile: chill
+  high_level_summary_in_walkthrough: true
+  review_details: true
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  suggested_labels: false
+  suggested_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  path_instructions: 
+    - path: "**/*"
+      instructions: "Report actionable correctness, security, data-integrity and reliability defects introduced by this change. Trace relevant callers and failure paths before asserting a bug; cite the code or contract and explain impact. Avoid speculative requirements, style-only churn and duplicate findings from existing CI. For cross-repository claims, identify the source and relevant dependency revision; default-branch context is not proof of deployed compatibility. If context is unavailable, state the uncertainty rather than inventing a contract."
+    - path: src/**
+      instructions: "Review proof verification, identity/challenge binding, freshness and single-use nonce consumption. Check concurrent replay, failed verification versus retry, JWT algorithm/key/subject binding, malformed or oversized requests and dependency failures. Compare response contracts with callers and keep verification secrets out of telemetry."
+    - path: "{deploy/**,.github/workflows/**,**/Dockerfile*}"
+      instructions: "Check stage/production targeting, permissions and secret handling, dependency/image revisions, rollout compatibility, startup/readiness behavior and rollback. Flag only risks supported by the actual configuration and deployment path."
+chat: 
+  art: false
+knowledge_base: 
+  automatic_linking_mode: auto
+  linked_repositories: 
+    - repository: worldcoin/signup-service
+      instructions: "Go enrollment and authentication APIs, processors and workers. Check request/result serialization, identity binding, queue routing and consumer behavior against the changed contract."
+    - repository: worldcoin/orb-tools
+      instructions: "Rust enrollment simulation and integration tests. Check client payloads, proof generation and assertions against the service contract; a successful request alone is not a completed enrollment."

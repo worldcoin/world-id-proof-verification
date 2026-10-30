@@ -1,0 +1,16 @@
+# CODEOWNERS for world-id-proof-verification-service
+# Lines are matched last-to-first; the last matching pattern wins.
+# Listed owners are requested for review automatically on matching changes.
+# Docs: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything in the repository.
+* @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
+
+# Cryptographic verification path and dependency provenance — extra scrutiny.
+/src/api/verification_api.rs   @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
+/Cargo.toml                    @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
+/Cargo.lock                    @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
+/deny.toml                     @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
+
+# CI and supply-chain configuration.
+/.github/                      @carlomazzaferro @wojciechsromek @philsippl @eaypek-tfh @leonanos8 @gryaele
