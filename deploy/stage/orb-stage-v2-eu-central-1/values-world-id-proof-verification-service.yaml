@@ -1,0 +1,109 @@
+image: "ghcr.io/worldcoin/world-id-proof-verification-service:d107fa51b02e77b0dba7df7ac6f69201c3d09ccd"
+
+replicaCount: 2
+# Override the chart's small-deployment strategy to retain serving replicas.
+strategy:
+  force: true
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+disruption:
+  maxUnavailable: 1
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: world-id-proof-verification-service
+        topologyKey: kubernetes.io/hostname
+
+loadSecrets: false
+forceLoadSecret: true # ArgoCD specific setting, required
+datadog:
+  enabled: true
+environment: stage
+env:
+  SRV_ENV: "stage"
+  RUST_LOG: "info"
+  SRV_NAME: "world-id-proof-verification-service"
+  GATEWAY_URL: "https://gateway.id-infra.worldcoin.dev"
+  GATEWAY_TIMEOUT: "2s"
+  ENABLE_PROOF_GEN_ENDPOINT: "true"
+  # Should be equal to the available amount of vCPUs in a pod -1 (to leave free compute for i/o)
+  VERIFICATION_CONCURRENCY: "2"
+  REDIS_URL:
+    valueFrom:
+      secretKeyRef:
+        key: REDIS_URL
+        name: application
+  JWT_TRUSTED_KEYS:
+    valueFrom:
+      secretKeyRef:
+        key: JWT_TRUSTED_KEYS
+        name: application
+
+
+imagePullSecrets:
+  enabled: true
+  secretName: dockerconfigjson
+
+resources:
+  limits:
+    cpu: 3
+    memory: 512Mi
+  requests:
+    cpu: 3
+    memory: 512Mi
+
+terminationGracePeriodSeconds: 120
+
+# Mark pod as unready if it fails to respond success to two consecutive calls in 2 * 5 = 10 seconds
+# After it's marked as unready, load balancer will not forward any requests to the pod
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+serviceAccount:
+  enabled: true
+
+httpRoutes:
+  - name: https
+    gatewayRef:
+      name: "gw-ext-alb"
+      namespace: "kube-system"
+      sectionName: "https"
+    hostnames:
+      - world-id-proof-verification-srv.stage.orb.worldcoin.org
+    port: 80
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+  - name: https-challenge
+    gatewayRef:
+      name: "gw-ext-alb"
+      namespace: "kube-system"
+      sectionName: "https"
+    hostnames:
+      - app.stage.orb.worldcoin.org
+    port: 80
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /api/v4/zkp

@@ -1,0 +1,19 @@
+# cargo-audit configuration.
+# Mirrors the advisory waivers in deny.toml so `cargo audit` and `cargo deny check`
+# agree. Each ignore MUST carry a justification and a removal condition.
+# Docs: https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0387: crypto-bigint 0.5.5 timing variability, retained through
+    # elliptic-curve 0.13.8 by Alloy/k256 and world-id-primitives/p256 0.13.
+    # Source review (2026-10-30) found no current service calls to the affected
+    # RustCrypto signer/AAT helpers. Ownership/Semaphore crypto uses Arkworks;
+    # HTTP JWT verification uses ring. The client signs in KMS and now parses
+    # signatures with p256 0.14 / patched crypto-bigint 0.7.10.
+    # Review by 2026-11-09; expires 2026-11-10, enforced by CI's waiver check.
+    # Follow-up: https://linear.app/worldcoin/issue/POP-4487
+    # Remove when upstream migrations eliminate affected crypto-bigint versions.
+    # Reassess immediately if RustCrypto secret-scalar operations become reachable.
+    "RUSTSEC-2026-0387",
+]

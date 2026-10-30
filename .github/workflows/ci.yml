@@ -1,0 +1,278 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on:
+      group: arc-public-xlarge-amd64-runner
+
+    # Redis backing the nonce store, on the same port the tests default to
+    # (6380), so the Redis-backed tests run against a live server on every build.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      # Third-party actions are pinned to immutable SHAs for public OSS supply-chain hygiene.
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # Pin via rustup instead of a toolchain action so cargo/rustc resolve to the MSRV.
+      - name: Install Rust 1.95.0
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+
+      # Vendored OpenSSL still needs native build tooling and pkg-config available.
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev pkg-config
+
+      - name: Cache cargo registry and build outputs
+        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      # The world-id-proof `embed-ownership-verifier` build script compiles the
+      # bundled Noir circuit with nargo. Pinned to the version the crate needs.
+      - name: Install Noir toolchain (nargo)
+        shell: bash
+        run: |
+          # world-id-proof 0.18.0 requires this exact nargo version.
+          mkdir -p "$HOME/.nargo/bin"
+          noirup_script="$(mktemp)"
+          trap 'rm -f "$noirup_script"' EXIT
+          curl -fsSL https://raw.githubusercontent.com/noir-lang/noirup/7dbe69ccc78877f0200ffa5a40836c953d2cfd8f/noirup -o "$noirup_script"
+          bash "$noirup_script" --version v1.0.0-beta.26
+          echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
+
+      - name: Build all targets
+        run: cargo build --locked --all-targets
+
+      - name: Run tests
+        run: cargo test --locked --workspace --all-targets
+
+  lint:
+    name: Format and lint
+    runs-on: ubuntu-latest
+
+    steps:
+      # Third-party actions are pinned to immutable SHAs for public OSS supply-chain hygiene.
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # rustfmt and clippy are installed only where the lint job needs them.
+      - name: Install Rust 1.95.0 with lint components
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.95.0
+
+      # Clippy compiles the crate, so keep the vendored OpenSSL build dependencies here too.
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev pkg-config
+
+      - name: Cache cargo registry and build outputs
+        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      # clippy compiles the crate, so the Noir toolchain is needed here too.
+      - name: Install Noir toolchain (nargo)
+        shell: bash
+        run: |
+          # world-id-proof 0.18.0 requires this exact nargo version.
+          mkdir -p "$HOME/.nargo/bin"
+          noirup_script="$(mktemp)"
+          trap 'rm -f "$noirup_script"' EXIT
+          curl -fsSL https://raw.githubusercontent.com/noir-lang/noirup/7dbe69ccc78877f0200ffa5a40836c953d2cfd8f/noirup -o "$noirup_script"
+          bash "$noirup_script" --version v1.0.0-beta.26
+          echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  client:
+    name: API client
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install Rust 1.95.0 with lint components
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.95.0
+
+      # reqwest and the AWS SDK build native crates (ring / aws-lc). No Noir
+      # toolchain: this job does not compile the service or its circuit.
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config
+
+      - name: Cache cargo registry and build outputs
+        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Check formatting
+        run: cargo fmt -p api-types -p world-id-proof-verification-client -- --check
+
+      - name: Run clippy
+        run: cargo clippy --locked --all-targets -p api-types -p world-id-proof-verification-client -- -D warnings
+
+      - name: Run tests
+        run: cargo test --locked --all-targets -p api-types -p world-id-proof-verification-client
+
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      # Third-party actions are pinned to immutable SHAs for public OSS supply-chain hygiene.
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check advisory waiver expiry
+        run: |
+          python3 - <<'PY'
+          from datetime import datetime, timezone, date
+          from pathlib import Path
+          import tomllib
+
+          advisory = "RUSTSEC-2026-0387"
+          expires = date(2026, 11, 10)
+          today = datetime.now(timezone.utc).date()
+          for filename in (".cargo/audit.toml", "deny.toml"):
+              config = tomllib.loads(Path(filename).read_text())
+              ignored = config.get("advisories", {}).get("ignore", [])
+              ids = [entry if isinstance(entry, str) else entry["id"] for entry in ignored]
+              if advisory in ids and today >= expires:
+                  raise SystemExit(
+                      f"{filename}: {advisory} waiver expired on {expires}; "
+                      "resolve POP-4487 and remove the exception or explicitly reassess it."
+                  )
+          PY
+
+      # Pin via rustup so cargo resolves to the same MSRV used by build and lint jobs.
+      - name: Install Rust 1.95.0
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+
+      - name: Cache cargo registry and build outputs
+        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@15449e3094499af05d8d964a1c884208e4b8b595 # v2.81.11
+        with:
+          tool: cargo-audit
+
+      - name: Run cargo audit
+        run: cargo audit
+
+  deny:
+    name: Check licenses and advisories
+    runs-on: ubuntu-latest
+
+    steps:
+      # Third-party actions are pinned to immutable SHAs for public OSS supply-chain hygiene.
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # Pin via rustup so cargo resolves to the same MSRV used by build and lint jobs.
+      - name: Install Rust 1.95.0
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+
+      - name: Cache cargo registry and build outputs
+        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@15449e3094499af05d8d964a1c884208e4b8b595 # v2.81.11
+        with:
+          tool: cargo-deny
+
+      - name: Run cargo deny
+        run: cargo deny check
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history so the commit range below resolves on both events.
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Download the official gitleaks release binary pinned to a
+      # version and verify its sha256 before use.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          rm -f gitleaks.tar.gz gitleaks
+          gitleaks version
+
+      # Scan only the commits introduced by this push/PR, not the whole history:
+      # keeps runs fast and prevents a single historical finding from blocking
+      # every future build. Allowlist for known false positives is in .gitleaks.toml.
+      # A full-history baseline scan is run manually, not in CI.
+      - name: Scan new commits for secrets
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            before="${{ github.event.before }}"
+            case "$before" in
+              ""|0000000000000000000000000000000000000000) range="" ;;
+              *) range="$before..${{ github.sha }}" ;;
+            esac
+          fi
+          if [ -n "$range" ]; then
+            echo "Scanning commit range: $range"
+            gitleaks detect --log-opts="$range" --redact -v
+          else
+            echo "No prior ref; scanning full history"
+            gitleaks detect --redact -v
+          fi

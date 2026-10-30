@@ -1,0 +1,99 @@
+[package]
+name = "world-id-proof-verification-service"
+version = "1.0.0"
+edition = "2021"
+# Deployable service binary — never published to a registry.
+publish = false
+
+[dependencies]
+api-types = { version = "0.1.0", path = "api-types" }
+axum = "0.8"
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "sync",
+    "time",
+] }
+serde = "1.0.136"
+serde_json = "1.0"
+# Pinned to an EXACT version, not a floating caret. `semaphore-rs` performs the
+# cryptographic proof verification, so the verification path must not float
+# across releases (soundness, not just reproducibility). Bumping it is a
+# deliberate, reviewed change. See CONTRIBUTING.md.
+semaphore-rs = { version = "=0.6.0", features = ["depth_30"] }
+# Already pulled in transitively via ark-groth16/provekit; declared directly so
+# `WorldIdOwnershipVerifier` can scope the WHIR verifier's internal parallelism
+# to a dedicated single-thread pool instead of Rayon's process-wide default one.
+rayon = "1"
+rand = "0.8"
+base64 = "0.22"
+ciborium = "0.2"
+uuid = { version = "1", features = ["v4", "serde"] }
+# `serde` feature (opt-in) so `NonceObject` timestamps round-trip through the store.
+chrono = { version = "0.4.31", features = ["serde"] }
+clap = { version = "4.0", features = ["derive", "env"] }
+tracing = "0.1.37"
+telemetry-batteries = { version = "0.3.2" }
+futures-util = "0.3.30"
+eyre = "0.6.12"
+data-encoding = "2.6.0"
+metrics = "0.24.6"
+openssl = { version = "0.10.64", features = ["vendored"] }
+# Async Redis client for the single-use nonce store. `tokio-native-tls-comp`
+# reuses the vendored OpenSSL stack for `rediss://`; default features are off.
+redis = { version = "1.0.3", default-features = false, features = [
+    "tokio-comp",
+    "connection-manager",
+    "tokio-native-tls-comp",
+] }
+async-trait = "0.1"
+thiserror = "2"
+# Human-friendly duration strings ("2s", "500ms") for timeout config values.
+humantime = "2"
+# `rustls-tls` reuses the pure-Rust TLS stack already in the graph (via alloy),
+# keeping the build hermetic; `default-features = false` drops the unused
+# blocking client, cookies, and system-proxy integration.
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+jsonwebtoken = "9"
+# Human-friendly byte-size parsing ("512KiB", "1MB") for `Config::max_body_bytes`,
+# falling back to a plain integer for backward-compatible env values.
+bytesize = "2.4.2"
+# Pin the ownership circuit and proof backend; upgrades require compatibility checks.
+world-id-proof = { version = "=0.18.0", features = ["embed-ownership-verifier"] }
+world-id-primitives = "=0.18.0"
+hex = "0.4.3"
+
+[dev-dependencies]
+# Capture the production JSON formatter in observability regression tests.
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace"] }
+# Syntax-aware source scanning and rustc-style diagnostics for the metric-label hygiene guard.
+annotate-snippets = "0.11"
+proc-macro2 = { version = "1", features = ["span-locations"] }
+syn = { version = "2", features = ["full", "visit"] }
+# `ServiceExt::oneshot` drives the `Router` in-process for endpoint tests, the
+# axum analogue of actix's `test::call_service`.
+tower = { version = "0.5", features = ["util"] }
+# Fixture construction for the ownership proof: the Poseidon2 permutations and the BabyJubJub
+# base field. Versions match `world-id-proof` 0.18.0 so a single set of field types
+# unifies across the graph.
+poseidon2 = { version = "=0.3.0", package = "taceo-poseidon2" }
+ark-babyjubjub = { version = "=0.6.0", package = "taceo-ark-babyjubjub" }
+ark-ff = "0.6"
+# Process CPU-time measurement, to compare against wall-clock and derive effective core usage.
+cpu-time = "1"
+
+world-id-proof = { version = "=0.18.0", features = ["embed-noir-artifacts"] }
+
+[workspace]
+# The root package stays the deployable service. `api-types` is the shared HTTP
+# contract. `world-id-proof-verification-client` is the World ID 4.x
+# ownership-proof client that callers (for example the migration API) use to
+# talk to `POST /api/v4/verify`.
+members = [".", "api-types", "client"]
+resolver = "2"

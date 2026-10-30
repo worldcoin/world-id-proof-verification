@@ -1,0 +1,22 @@
+# gitleaks configuration for world-id-proof-verification-service.
+# Extends the bundled default ruleset and allowlists known false positives so
+# `gitleaks detect` is clean over both the working tree and git history.
+#
+# Run:  gitleaks detect            # full history
+#       gitleaks detect --no-git   # working tree
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known non-secrets: a doc-example UUID and compiled build artifacts."
+# Build artifacts are gitignored and never shipped; high-entropy bytes in
+# rustc .rmeta / incremental metadata trip the generic-api-key rule.
+paths = [
+  '''target/''',
+]
+# Placeholder UUID used only as a `secret:` field value in rustdoc examples in
+# src/models/generation_model.rs. Not a credential.
+regexes = [
+  '''d4f1c433-217a-434e-b044-2ca9c267591d''',
+]
