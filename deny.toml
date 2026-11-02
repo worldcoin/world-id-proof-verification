@@ -1,0 +1,57 @@
+# cargo-deny configuration — supply-chain gate for a public crypto service.
+# Docs: https://embarkstudios.github.io/cargo-deny/
+# Run locally with: cargo deny check
+
+[advisories]
+version = 2
+# Only flag unmaintained crates we depend on directly. The deep-transitive
+# maintenance flags (derivative, bincode, paste, proc-macro-error2, ... via the
+# semaphore-rs / ark / alloy crypto stack) are not actionable on our side.
+unmaintained = "workspace"
+# Waive specific advisories that cannot be fixed yet. Each entry MUST carry a
+# justification and a removal condition.
+ignore = [
+    # Static exposure review and removal conditions are mirrored in .cargo/audit.toml.
+    # Review by 2026-11-09: https://linear.app/worldcoin/issue/POP-4487
+    # Expires 2026-11-10, enforced by CI's waiver check.
+    { id = "RUSTSEC-2026-0387", reason = "No current service calls to affected RustCrypto secret-scalar helpers; ownership/Semaphore use Arkworks, JWT verification uses ring, and the KMS client uses patched p256 0.14. Remove after upstream Alloy/world-id-primitives migrations; reassess if usage changes. Tracked in POP-4487." },
+]
+
+[bans]
+# Multiple versions of the same crate bloat the binary; surface but don't block.
+multiple-versions = "warn"
+# Wildcard ("*") version requirements are forbidden in our own manifests.
+wildcards = "deny"
+
+[licenses]
+version = 2
+confidence-threshold = 0.8
+# Permissive / weak-copyleft licenses actually present in the dependency tree.
+# Derived from `cargo metadata`; AND-combined licenses must be listed explicitly.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "CC0-1.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "CDLA-Permissive-2.0",
+    # Permissive; pulled by xxhash-rust (unconditional dep of the redis client).
+    "BSL-1.0",
+]
+
+# Our own binary crate has no license header yet (tracked separately) and is
+# never published (`publish = false`), so skip license checks for private crates.
+[licenses.private]
+ignore = true
+
+[sources]
+# Only the official crates.io registry is permitted; no git or unknown sources.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
