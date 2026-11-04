@@ -239,6 +239,33 @@ exact version so the cryptographic verification path cannot float across release
 docker build -t world-id-proof-verification .
 ```
 
+To build a PR branch for stage testing, open a non-draft PR from a branch in
+this repository. After the existing CI checks pass, **Build PR image for stage
+(manual approval)** waits for approval of the `stage-manual` environment.
+In the PR's **CI** run, choose **Review deployments**, select `stage-manual`,
+and approve when ready to test. No workflow inputs or merge to `main` are needed.
+Fork PRs cannot publish images or push pins.
+
+Configure `stage-manual` under **Settings > Environments** with the six
+users in `.github/CODEOWNERS` as required reviewers, self-review allowed,
+admin bypass disabled, and no deployment branch restrictions
+(PR runs use pull-request refs).
+An environment name alone does not enforce approval; required reviewers
+must be configured before running this workflow. Keep this reviewer list
+in sync when code owners change. One code owner's approval releases the job.
+
+The approved job builds the exact PR head commit and publishes
+`ghcr.io/worldcoin/world-id-proof-verification:<pr-head-sha>`, leaving `latest`
+unchanged. After successful publication, **Pin PR image for stage** pushes a
+`chore(stage): pin ...` commit updating only the stage application image.
+The pin references the built commit, not the later pin commit. If the PR branch
+changes during the build, the pin push fails; use the newer commit's CI run.
+
+To deploy it for testing, configure the stage ArgoCD application to read that
+branch and its
+`deploy/stage/orb-stage-v2-eu-central-1/values-world-id-proof-verification.yaml`
+values file. The workflow does not change ArgoCD's target revision.
+
 ## License
 
 [MIT](./LICENSE)
