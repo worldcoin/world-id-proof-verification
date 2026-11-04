@@ -155,11 +155,12 @@ async fn run(cfg: config::Config) -> Result<()> {
         jwt_keys,
     };
 
+    let http_addr = cfg.http_addr;
     let app = create_app(cfg, deps);
     let listener = startup_step("listener_bind", async {
-        tokio::net::TcpListener::bind(("0.0.0.0", 8080))
+        tokio::net::TcpListener::bind(http_addr)
             .await
-            .wrap_err("failed to bind 0.0.0.0:8080")
+            .wrap_err_with(|| format!("failed to bind {http_addr}"))
     })
     .await?;
     // Warm the verifier before accepting traffic, mirroring the original

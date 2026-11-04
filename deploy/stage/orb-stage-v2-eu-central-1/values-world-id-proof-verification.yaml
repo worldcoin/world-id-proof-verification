@@ -1,0 +1,206 @@
+# Release gate: pin an image containing HTTP_ADDR support before applying these values.
+image: "ghcr.io/worldcoin/world-id-proof-verification:d107fa51b02e77b0dba7df7ac6f69201c3d09ccd"
+
+replicaCount: 2
+# Override the chart's small-deployment strategy to retain serving replicas.
+strategy:
+  force: true
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+disruption:
+  maxUnavailable: 1
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: world-id-proof-verification-service
+        topologyKey: kubernetes.io/hostname
+
+loadSecrets: false
+forceLoadSecret: true # ArgoCD specific setting, required
+datadog:
+  enabled: true
+environment: stage
+env:
+  HTTP_ADDR: "127.0.0.1:8000"
+  SRV_ENV: "stage"
+  RUST_LOG: "info"
+  SRV_NAME: "world-id-proof-verification-service"
+  GATEWAY_URL: "https://gateway.id-infra.worldcoin.dev"
+  GATEWAY_TIMEOUT: "2s"
+  ENABLE_PROOF_GEN_ENDPOINT: "true"
+  # Should be equal to the available amount of vCPUs in a pod -1 (to leave free compute for i/o)
+  VERIFICATION_CONCURRENCY: "2"
+  REDIS_URL:
+    valueFrom:
+      secretKeyRef:
+        key: REDIS_URL
+        name: application
+  JWT_TRUSTED_KEYS:
+    valueFrom:
+      secretKeyRef:
+        key: JWT_TRUSTED_KEYS
+        name: application
+
+
+imagePullSecrets:
+  enabled: true
+  secretName: dockerconfigjson
+
+resources:
+  limits:
+    cpu: 3
+    memory: 512Mi
+  requests:
+    cpu: 3
+    memory: 512Mi
+
+ports:
+  - name: http
+    containerPort: 8000
+    protocol: TCP
+service:
+  port: null
+  ports:
+    - name: http
+      port: 80
+      targetPort: proxy
+      protocol: TCP
+
+targetGroupConfigurations:
+  - defaultConfiguration:
+      targetType: ip
+      healthCheckConfig:
+        healthCheckPath: /ready
+        healthCheckPort: "traffic-port"
+        healthCheckProtocol: HTTP
+
+sidecars:
+  - name: attested-proxy
+    image: ghcr.io/worldcoin/attested-proxy:sha-74ddad0@sha256:ef556a8c02c168d6fbaaa8d1e583ee2c51855c342ff86145dfc71769c0ac4612
+    ports:
+      - name: proxy
+        containerPort: 8080
+        protocol: TCP
+      - name: admin
+        containerPort: 8081
+        protocol: TCP
+    env:
+      - name: ATTESTED_PROXY_UPSTREAM
+        value: http://127.0.0.1:8000
+      - name: ATTESTED_PROXY_AUTHORITY
+        value: app.stage.orb.worldcoin.org
+      - name: ATTESTED_PROXY_SCHEME
+        value: https
+      - name: ATTESTED_PROXY_ISSUER
+        value: ci.attestation.worldcoin.dev
+      - name: ATTESTED_PROXY_JWKS_URL
+        value: https://attestation.worldcoin.dev/.well-known/jwks.json
+      - name: ATTESTED_PROXY_AUDIENCES
+        value: attestation.worldcoin.dev,app.stage.orb.worldcoin.org
+      - name: ATTESTED_PROXY_UNPROTECTED_PATHS
+        value: /health,/ready,/api/v1/verify,/api/v4/verify,/api/v1/gen
+      - name: RUST_LOG
+        value: info
+      - name: TELEMETRY_PRESET
+        value: datadog
+      - name: TELEMETRY_SERVICE_NAME
+        value: world-id-proof-verification-attested-proxy
+      - name: DD_SERVICE
+        value: world-id-proof-verification-attested-proxy
+      - name: DD_ENV
+        value: stage
+      - name: DD_VERSION
+        value: sha-74ddad0
+      - name: DD_ENTITY_ID
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.uid
+      - name: DATADOG_AGENT_HOST
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
+      - name: TELEMETRY_DATADOG_ENDPOINT
+        value: "http://$(DATADOG_AGENT_HOST):8126"
+      - name: TELEMETRY_METRICS_BACKEND
+        value: statsd
+      - name: TELEMETRY_STATSD_HOST
+        value: "$(DATADOG_AGENT_HOST)"
+      - name: TELEMETRY_STATSD_PORT
+        value: "8125"
+    resources:
+      requests:
+        cpu: "50m"
+        memory: 64Mi
+      limits:
+        cpu: "250m"
+        memory: 128Mi
+    securityContext:
+      runAsUser: 65532
+      runAsGroup: 65532
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      privileged: false
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    # No JWKS readiness probe: verification must remain available during gateway outages.
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: admin
+
+terminationGracePeriodSeconds: 120
+
+# Mark pod as unready if it fails to respond success to two consecutive calls in 2 * 5 = 10 seconds
+# After it's marked as unready, load balancer will not forward any requests to the pod
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+serviceAccount:
+  enabled: true
+
+httpRoutes:
+  - name: https
+    gatewayRef:
+      name: "gw-ext-alb"
+      namespace: "kube-system"
+      sectionName: "https"
+    hostnames:
+      - world-id-proof-verification-srv.stage.orb.worldcoin.org
+    port: 80
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+  - name: https-challenge
+    gatewayRef:
+      name: "gw-ext-alb"
+      namespace: "kube-system"
+      sectionName: "https"
+    hostnames:
+      - app.stage.orb.worldcoin.org
+    port: 80
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /api/v4/zkp

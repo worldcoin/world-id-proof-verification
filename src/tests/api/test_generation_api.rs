@@ -15,6 +15,7 @@ mod test_generation_endpoint {
     // test hermetic.
     fn test_config(enable_proof_gen_endpoint: bool) -> Config {
         Config {
+            http_addr: "0.0.0.0:8080".parse().unwrap(),
             srv_env: "test".to_string(),
             srv_name: "world-id-proof-verification-service".to_string(),
             srv_version: "0.0.0".to_string(),

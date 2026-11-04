@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
@@ -32,6 +33,7 @@ use clap::Parser;
 /// use world_id_proof_verification_service::cfg::config::Config;
 ///
 /// let config = Config {
+///     http_addr: "0.0.0.0:8080".parse().unwrap(),
 ///     srv_env: "prod".to_string(),
 ///     srv_name: "world-id-proof-verification-service".to_string(),
 ///     srv_version: "1.0.0".to_string(),
@@ -70,6 +72,9 @@ use clap::Parser;
 /// ```
 #[derive(Clone, Debug, Parser)]
 pub struct Config {
+    /// HTTP listener address; bind to loopback behind attested-proxy.
+    #[arg(long, env, default_value = "0.0.0.0:8080")]
+    pub http_addr: SocketAddr,
     #[arg(long, env, default_value = "prod")]
     pub srv_env: String,
     #[arg(long, env, default_value = option_env!("CARGO_PKG_NAME"))]
@@ -129,3 +134,27 @@ pub struct Config {
 }
 
 pub const TREE_DEPTH: usize = 30;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn http_listener_preserves_default_and_supports_loopback() {
+        let args = [
+            "svc",
+            "--gateway-url",
+            "http://gateway.test",
+            "--jwt-trusted-keys",
+            "{}",
+        ];
+        let default = Config::try_parse_from(args).unwrap();
+        assert_eq!(default.http_addr, "0.0.0.0:8080".parse().unwrap());
+        let cfg = Config::try_parse_from(args.into_iter().chain(["--http-addr", "127.0.0.1:8000"]))
+            .unwrap();
+        assert_eq!(cfg.http_addr, "127.0.0.1:8000".parse().unwrap());
+        assert!(
+            Config::try_parse_from(args.into_iter().chain(["--http-addr", "invalid"])).is_err()
+        );
+    }
+}
