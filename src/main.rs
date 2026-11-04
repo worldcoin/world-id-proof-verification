@@ -24,9 +24,7 @@ use world_id_proof_verification::services::nonce_store::{
 use world_id_proof_verification::services::ownership_proof_verifier::{
     DynOwnershipProofVerifier, WorldIdOwnershipVerifier,
 };
-use world_id_proof_verification::services::proof_verifier::{
-    DynProofVerifier, SemaphoreVerifier,
-};
+use world_id_proof_verification::services::proof_verifier::{DynProofVerifier, SemaphoreVerifier};
 
 #[cfg(test)]
 mod tests;

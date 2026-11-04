@@ -10,7 +10,8 @@ mod test_health_check {
         let app = create_app(test_config(), mock_deps());
         let resp = get(app, "/health").await;
         assert_eq!(resp.status(), StatusCode::OK);
-        let expected_body = r#"{"msg":"check","app_name":"world-id-proof-verification","app_version":"1.0.0"}"#;
+        let expected_body =
+            r#"{"msg":"check","app_name":"world-id-proof-verification","app_version":"1.0.0"}"#;
         assert_eq!(body_string(resp).await, expected_body);
     }
 }
