@@ -10,21 +10,21 @@ use telemetry_batteries::{
     TopLevelResultExt,
 };
 use tracing::Instrument;
-use world_id_proof_verification_service::app::{create_app, AppDeps};
-use world_id_proof_verification_service::cfg::config;
-use world_id_proof_verification_service::cfg::config::TREE_DEPTH;
-use world_id_proof_verification_service::clients::gateway::{
+use world_id_proof_verification::app::{create_app, AppDeps};
+use world_id_proof_verification::cfg::config;
+use world_id_proof_verification::cfg::config::TREE_DEPTH;
+use world_id_proof_verification::clients::gateway::{
     GatewayClient, GatewayClientConfig, HttpGatewayClient,
 };
-use world_id_proof_verification_service::services::gateway_service::GatewayService;
-use world_id_proof_verification_service::services::jwt_auth::JwtKeyStore;
-use world_id_proof_verification_service::services::nonce_store::{
+use world_id_proof_verification::services::gateway_service::GatewayService;
+use world_id_proof_verification::services::jwt_auth::JwtKeyStore;
+use world_id_proof_verification::services::nonce_store::{
     DynNonceStore, RedisConfig, RedisNonceStore,
 };
-use world_id_proof_verification_service::services::ownership_proof_verifier::{
+use world_id_proof_verification::services::ownership_proof_verifier::{
     DynOwnershipProofVerifier, WorldIdOwnershipVerifier,
 };
-use world_id_proof_verification_service::services::proof_verifier::{
+use world_id_proof_verification::services::proof_verifier::{
     DynProofVerifier, SemaphoreVerifier,
 };
 

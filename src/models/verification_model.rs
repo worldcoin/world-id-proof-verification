@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```
-/// use world_id_proof_verification_service::models::verification_model::VerificationRequest;
+/// use world_id_proof_verification::models::verification_model::VerificationRequest;
 /// use semaphore_rs::protocol::Proof;
 /// use semaphore_rs::hash_to_field;
 /// use serde_json::json;

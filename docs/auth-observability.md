@@ -45,10 +45,10 @@ raw claims, and unverified caller names are never included in these auth logs.
 Datadog queries:
 
 ```text
-service:world-id-proof-verification-service env:stage @event:authentication_rejected
-service:world-id-proof-verification-service env:stage @stage:http_response @auth.outcome:rejected
-service:world-id-proof-verification-service env:stage @auth.error_kind:expired
-service:world-id-proof-verification-service env:stage @http.status_code:401 @auth.outcome:accepted
+service:world-id-proof-verification env:stage @event:authentication_rejected
+service:world-id-proof-verification env:stage @stage:http_response @auth.outcome:rejected
+service:world-id-proof-verification env:stage @auth.error_kind:expired
+service:world-id-proof-verification env:stage @http.status_code:401 @auth.outcome:accepted
 ```
 
 Use the response's `x-request-id` to find related logs with

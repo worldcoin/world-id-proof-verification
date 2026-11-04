@@ -9016,24 +9016,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "world-id-proof-verification-client"
-version = "0.1.0"
-dependencies = [
- "api-types",
- "async-trait",
- "aws-sdk-kms",
- "axum",
- "base64 0.22.1",
- "p256 0.14.0",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tokio",
-]
-
-[[package]]
-name = "world-id-proof-verification-service"
+name = "world-id-proof-verification"
 version = "1.0.0"
 dependencies = [
  "annotate-snippets",
@@ -9076,6 +9059,23 @@ dependencies = [
  "uuid",
  "world-id-primitives",
  "world-id-proof",
+]
+
+[[package]]
+name = "world-id-proof-verification-client"
+version = "0.1.0"
+dependencies = [
+ "api-types",
+ "async-trait",
+ "aws-sdk-kms",
+ "axum",
+ "base64 0.22.1",
+ "p256 0.14.0",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
 ]
 
 [[package]]

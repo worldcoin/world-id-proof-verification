@@ -30,12 +30,12 @@ use clap::Parser;
 ///
 /// ```
 /// use std::time::Duration;
-/// use world_id_proof_verification_service::cfg::config::Config;
+/// use world_id_proof_verification::cfg::config::Config;
 ///
 /// let config = Config {
 ///     http_addr: "0.0.0.0:8080".parse().unwrap(),
 ///     srv_env: "prod".to_string(),
-///     srv_name: "world-id-proof-verification-service".to_string(),
+///     srv_name: "world-id-proof-verification".to_string(),
 ///     srv_version: "1.0.0".to_string(),
 ///     dd_agent_host: "localhost".to_string(),
 ///     dd_agent_port: "8126".to_string(),
@@ -54,7 +54,7 @@ use clap::Parser;
 ///     verify_timeout: Duration::from_secs(5),
 /// };
 /// assert_eq!(config.srv_env, "prod");
-/// assert_eq!(config.srv_name, "world-id-proof-verification-service");
+/// assert_eq!(config.srv_name, "world-id-proof-verification");
 /// assert_eq!(config.srv_version, "1.0.0");
 /// assert_eq!(config.dd_agent_host, "localhost");
 /// assert_eq!(config.dd_agent_port, "8126");

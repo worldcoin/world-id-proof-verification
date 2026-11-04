@@ -14,7 +14,7 @@ use tower::ServiceExt;
 use world_id_primitives::FieldElement;
 use world_id_proof::artifacts::ZkArtifactSource;
 use world_id_proof::ProofError;
-use world_id_proof_verification_service::{
+use world_id_proof_verification::{
     app::AppDeps,
     cfg::config::Config,
     clients::gateway::{GatewayClient, GatewayError},

@@ -13,7 +13,7 @@ mod verify_auth_endpoint {
     use serde::Serialize;
     use world_id_primitives::FieldElement;
     use world_id_proof::WhirR1CSProof;
-    use world_id_proof_verification_service::{
+    use world_id_proof_verification::{
         app::create_app,
         models::{
             challenge_model::ChallengeId,

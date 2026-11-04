@@ -3,7 +3,7 @@ mod test_readiness_endpoint {
     use std::sync::Arc;
 
     use axum::http::StatusCode;
-    use world_id_proof_verification_service::app::create_app;
+    use world_id_proof_verification::app::create_app;
 
     use crate::tests::support::{
         body_string, deps_with, get, redis_store, test_config, MockNonceStore, RootVerdict,

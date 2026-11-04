@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to `world-id-proof-verification-service`.
+Thanks for your interest in contributing to `world-id-proof-verification`.
 
 ## Getting started
 

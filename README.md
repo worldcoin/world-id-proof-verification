@@ -90,7 +90,7 @@ removing verification traffic. Replay storage is disabled: signatures can be
 reused within the 300-second freshness window (60-second future clock skew).
 
 Before rollout, pin an application image supporting `HTTP_ADDR`. ArgoCD currently
-reads `worldcoin/world-id-proof-verification-service`; promote these changes there
+reads `worldcoin/world-id-proof-verification`; promote these changes there
 or update its source. Roll back the image and values together.
 
 ### Example
@@ -236,7 +236,7 @@ exact version so the cryptographic verification path cannot float across release
 ## Container
 
 ```bash
-docker build -t world-id-proof-verification-service .
+docker build -t world-id-proof-verification .
 ```
 
 ## License

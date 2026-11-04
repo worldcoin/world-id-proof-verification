@@ -6,7 +6,7 @@ mod test_challenge_endpoint {
     use axum::http::StatusCode;
     use chrono::{DateTime, Utc};
     use uuid::Uuid;
-    use world_id_proof_verification_service::{
+    use world_id_proof_verification::{
         app::create_app,
         cfg::config::Config,
         models::challenge_model::{ChallengeType, Nonce, NonceObject},

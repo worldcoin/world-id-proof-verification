@@ -1,5 +1,5 @@
 [package]
-name = "world-id-proof-verification-service"
+name = "world-id-proof-verification"
 version = "1.0.0"
 edition = "2021"
 # Deployable service binary — never published to a registry.

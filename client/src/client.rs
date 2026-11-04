@@ -36,7 +36,7 @@ pub enum VerificationError {
     Canceled(#[source] reqwest::Error),
     #[error("request to the proof verification service failed: {0}")]
     Connection(#[source] reqwest::Error),
-    #[error("world-id-proof-verification-service returned {status}")]
+    #[error("world-id-proof-verification returned {status}")]
     UnexpectedStatus { status: StatusCode },
 }
 
@@ -66,7 +66,7 @@ pub enum ChallengeError {
     Canceled(#[source] reqwest::Error),
     #[error("request to the proof verification service failed: {0}")]
     Connection(#[source] reqwest::Error),
-    #[error("world-id-proof-verification-service returned {status}")]
+    #[error("world-id-proof-verification returned {status}")]
     UnexpectedStatus { status: StatusCode },
     #[error("challenge response was not the expected JSON: {0}")]
     Decode(#[source] serde_json::Error),

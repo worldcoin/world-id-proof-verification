@@ -1,4 +1,4 @@
-# gitleaks configuration for world-id-proof-verification-service.
+# gitleaks configuration for world-id-proof-verification.
 # Extends the bundled default ruleset and allowlists known false positives so
 # `gitleaks detect` is clean over both the working tree and git history.
 #

@@ -15,7 +15,7 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchLabels:
-            app.kubernetes.io/name: world-id-proof-verification-service
+            app.kubernetes.io/name: world-id-proof-verification
         topologyKey: kubernetes.io/hostname
 
 loadSecrets: false
@@ -27,7 +27,7 @@ env:
   HTTP_ADDR: "127.0.0.1:8000"
   SRV_ENV: "stage"
   RUST_LOG: "info"
-  SRV_NAME: "world-id-proof-verification-service"
+  SRV_NAME: "world-id-proof-verification"
   GATEWAY_URL: "https://gateway.id-infra.worldcoin.dev"
   GATEWAY_TIMEOUT: "2s"
   ENABLE_PROOF_GEN_ENDPOINT: "true"

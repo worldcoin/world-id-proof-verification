@@ -34,8 +34,8 @@ use world_id_proof::artifacts::ZkArtifactSource;
 use world_id_proof::{
     circuit_inputs::OwnershipProofCircuitInput, ownership_proof::generate_ownership_proof,
 };
-use world_id_proof_verification_service::models::challenge_model::ChallengeType;
-use world_id_proof_verification_service::{
+use world_id_proof_verification::models::challenge_model::ChallengeType;
+use world_id_proof_verification::{
     cfg::config::TREE_DEPTH as SEMAPHORE_TREE_DEPTH,
     services::ownership_proof_verifier::{OwnershipProofVerifier, WorldIdOwnershipVerifier},
 };
