@@ -1,4 +1,4 @@
-image: "ghcr.io/worldcoin/world-id-proof-verification-service:d107fa51b02e77b0dba7df7ac6f69201c3d09ccd"
+image: "ghcr.io/worldcoin/world-id-proof-verification:3bfae4063a2f698433e33aeb6ec4e14a35f2737d"
 
 replicaCount: 2
 # Override the chart's small-deployment strategy to retain serving replicas.
