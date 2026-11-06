@@ -24,7 +24,7 @@ datadog:
   enabled: true
 environment: stage
 env:
-  HTTP_ADDR: "127.0.0.1:8000"
+  #HTTP_ADDR: "127.0.0.1:8000"
   SRV_ENV: "stage"
   RUST_LOG: "info"
   SRV_NAME: "world-id-proof-verification"
