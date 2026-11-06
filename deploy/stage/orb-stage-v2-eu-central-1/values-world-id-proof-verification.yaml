@@ -1,5 +1,5 @@
 # Release gate: pin an image containing HTTP_ADDR support before applying these values.
-image: "ghcr.io/worldcoin/world-id-proof-verification:0aae6f197af984369e50f2c7d44a84c85c17ff7f"
+image: "ghcr.io/worldcoin/world-id-proof-verification:1fe0283286526bb4c00069770bb24802115d72c6"
 
 replicaCount: 2
 # Override the chart's small-deployment strategy to retain serving replicas.
