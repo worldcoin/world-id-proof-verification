@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```
-/// use world_id_proof_verification_service::models::generation_model::Generation;
+/// use world_id_proof_verification::models::generation_model::Generation;
 /// use serde_json::json;
 ///     
 ///

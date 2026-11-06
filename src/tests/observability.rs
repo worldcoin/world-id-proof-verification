@@ -13,8 +13,8 @@ use telemetry_batteries::tracing::layers::datadog::DatadogFormat;
 use tower::ServiceExt;
 use tracing::instrument::WithSubscriber;
 use tracing_subscriber::{fmt::MakeWriter, prelude::*, EnvFilter};
-use world_id_proof_verification_service::app::create_app;
-use world_id_proof_verification_service::models::challenge_model::{ChallengeType, NonceObject};
+use world_id_proof_verification::app::create_app;
+use world_id_proof_verification::models::challenge_model::{ChallengeType, NonceObject};
 
 use super::support::{
     attacker_priv, body_json, deps_with, encode_proof, mock_deps, sign_token, svc_a_current_priv,
@@ -95,7 +95,7 @@ async fn request_outcome_logs_include_validated_challenge_type() {
         },
     ));
     let proof = encode_proof(
-        &world_id_proof_verification_service::models::ownership_model::OwnershipProof {
+        &world_id_proof_verification::models::ownership_model::OwnershipProof {
             proof: world_id_proof::WhirR1CSProof {
                 narg_string: vec![],
                 hints: vec![],
@@ -359,7 +359,7 @@ async fn auth_rejection_reasons_survive_key_rotation_and_reach_outcome_logs() {
 async fn proof_rejection_401_explicitly_records_successful_authentication() {
     use world_id_primitives::FieldElement;
     use world_id_proof::WhirR1CSProof;
-    use world_id_proof_verification_service::models::ownership_model::{
+    use world_id_proof_verification::models::ownership_model::{
         OwnershipProof, OwnershipVerificationRequest,
     };
 

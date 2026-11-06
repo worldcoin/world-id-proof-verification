@@ -17,7 +17,7 @@ mod test_verification_endpoint {
     use std::env;
     use world_id_primitives::FieldElement;
     use world_id_proof::WhirR1CSProof;
-    use world_id_proof_verification_service::{
+    use world_id_proof_verification::{
         api::verification_api::{VerificationMsg, VerificationResult},
         app::create_app,
         models::{

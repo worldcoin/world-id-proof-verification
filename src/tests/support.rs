@@ -14,7 +14,7 @@ use tower::ServiceExt;
 use world_id_primitives::FieldElement;
 use world_id_proof::artifacts::ZkArtifactSource;
 use world_id_proof::ProofError;
-use world_id_proof_verification_service::{
+use world_id_proof_verification::{
     app::AppDeps,
     cfg::config::Config,
     clients::gateway::{GatewayClient, GatewayError},
@@ -267,6 +267,7 @@ pub fn mock_deps() -> AppDeps {
 /// `Config::parse()`, which reads process args/env and now requires `gateway_url`.
 pub fn test_config() -> Config {
     Config {
+        http_addr: "0.0.0.0:8080".parse().unwrap(),
         srv_env: "test".to_string(),
         // Real package identity so version-sensitive tests (e.g. /health) match.
         srv_name: env!("CARGO_PKG_NAME").to_string(),

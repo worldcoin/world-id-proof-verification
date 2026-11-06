@@ -36,7 +36,7 @@ pub enum VerificationError {
     Canceled(#[source] reqwest::Error),
     #[error("request to the proof verification service failed: {0}")]
     Connection(#[source] reqwest::Error),
-    #[error("world-id-proof-verification-service returned {status}")]
+    #[error("world-id-proof-verification returned {status}")]
     UnexpectedStatus { status: StatusCode },
 }
 
@@ -66,7 +66,7 @@ pub enum ChallengeError {
     Canceled(#[source] reqwest::Error),
     #[error("request to the proof verification service failed: {0}")]
     Connection(#[source] reqwest::Error),
-    #[error("world-id-proof-verification-service returned {status}")]
+    #[error("world-id-proof-verification returned {status}")]
     UnexpectedStatus { status: StatusCode },
     #[error("challenge response was not the expected JSON: {0}")]
     Decode(#[source] serde_json::Error),
@@ -101,8 +101,8 @@ impl Client {
 
     /// Asks the service for a single-use challenge of `challenge_type`.
     ///
-    /// The route is public: this call does not send the verify JWT. `Ok` is an
-    /// HTTP 201 whose body decoded as a [`ChallengeResponse`].
+    /// Sends no signature or verify JWT; attested-proxy deployments reject it.
+    /// `Ok` is an HTTP 201 decoded as a [`ChallengeResponse`].
     pub async fn challenge(
         &self,
         challenge_type: ChallengeType,

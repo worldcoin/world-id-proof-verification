@@ -24,7 +24,7 @@ COPY Cargo.toml /code
 COPY Cargo.lock /code
 
 WORKDIR /code
-RUN cargo build --release --locked --bin world-id-proof-verification-service && cp target/release/world-id-proof-verification-service /app/world-id-proof-verification-service && rm -rf /code
+RUN cargo build --release --locked --bin world-id-proof-verification && cp target/release/world-id-proof-verification /app/world-id-proof-verification && rm -rf /code
 
 #--------------------------------------------------------------------------------------
 FROM public.ecr.aws/docker/library/debian:12-slim
@@ -36,7 +36,7 @@ RUN apt-get update && \
 
 RUN mkdir /app
 WORKDIR /app
-COPY --from=builder /app/world-id-proof-verification-service /app/world-id-proof-verification-service
+COPY --from=builder /app/world-id-proof-verification /app/world-id-proof-verification
 # nobody user
 USER 65534
-CMD ["/app/world-id-proof-verification-service"]
+CMD ["/app/world-id-proof-verification"]

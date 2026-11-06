@@ -66,8 +66,8 @@ impl ProofGenerator for SemaphoreProofGenerator {
     /// # Examples
     ///
     /// ```
-    /// use world_id_proof_verification_service::models::generation_model::Generation;
-    /// use world_id_proof_verification_service::services::proof_generator::{ProofGenerator, SemaphoreProofGenerator};
+    /// use world_id_proof_verification::models::generation_model::Generation;
+    /// use world_id_proof_verification::services::proof_generator::{ProofGenerator, SemaphoreProofGenerator};
     ///
     /// let gen_req = Generation {
     ///     secret: "abcxyz".to_string(),

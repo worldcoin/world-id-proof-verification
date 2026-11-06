@@ -2,7 +2,7 @@
 mod test_generation_endpoint {
     use axum::http::StatusCode;
     use serde_json::Value;
-    use world_id_proof_verification_service::{
+    use world_id_proof_verification::{
         api::generation_api::GenerationMsg, api::generation_api::GenerationResult, app::create_app,
         cfg::config::Config, models::generation_model::Generation,
     };
@@ -15,8 +15,9 @@ mod test_generation_endpoint {
     // test hermetic.
     fn test_config(enable_proof_gen_endpoint: bool) -> Config {
         Config {
+            http_addr: "0.0.0.0:8080".parse().unwrap(),
             srv_env: "test".to_string(),
-            srv_name: "world-id-proof-verification-service".to_string(),
+            srv_name: "world-id-proof-verification".to_string(),
             srv_version: "0.0.0".to_string(),
             dd_agent_host: "127.0.0.1".to_string(),
             dd_agent_port: "8126".to_string(),

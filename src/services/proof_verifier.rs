@@ -56,8 +56,8 @@ impl ProofVerifier for SemaphoreVerifier {
     /// # Examples
     ///
     /// ```
-    /// use world_id_proof_verification_service::models::verification_model::VerificationRequest;
-    /// use world_id_proof_verification_service::services::proof_verifier::{ProofVerifier, SemaphoreVerifier};
+    /// use world_id_proof_verification::models::verification_model::VerificationRequest;
+    /// use world_id_proof_verification::services::proof_verifier::{ProofVerifier, SemaphoreVerifier};
     /// use semaphore_rs::hash_to_field;
     /// use serde_json::json;
     ///

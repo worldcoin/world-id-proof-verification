@@ -1,4 +1,4 @@
-//! World ID 4.x (WIP-103) client for world-id-proof-verification-service.
+//! World ID 4.x (WIP-103) client for world-id-proof-verification.
 //!
 //! [`Client::challenge`] requests a single-use challenge. [`Client::verify`]
 //! submits an ownership proof for that challenge's id. The nonce is not sent
