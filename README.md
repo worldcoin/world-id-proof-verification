@@ -28,7 +28,7 @@ The server listens on `HTTP_ADDR` (default `0.0.0.0:8080`).
 |--------|-------------------|------------------------------------------------------------------|
 | `POST` | `/api/v1/verify`  | Verify a World ID / Semaphore proof against a challenge.         |
 | `POST` | `/api/v4/verify`  | Verify a World ID 4.x ownership proof against a single-use challenge. **Requires JWT auth** (`Authorization: Bearer`), see [Authentication](#authentication). |
-| `POST` | `/api/v4/zkp/challenge/{challenge_type}` | Issue a single-use challenge. Supported types: `enrollment`, `teedi_migration`. **Requires canonical request signing in the stage deployment**, see below. |
+| `POST` | `/api/v4/zkp/challenge/{challenge_type}` | Issue a single-use challenge. Supported types: `enrollment`, `teedi_migration`. Request signing is optional during client migration; see below for enabling it in stage. |
 | `GET`  | `/health`         | Liveness check; returns service name and version (no dependency checks).  |
 | `GET`  | `/ready`          | Readiness check; `200` when the nonce-store Redis answers `PING`, `503` otherwise. |
 | `POST` | `/api/v1/gen`     | **Optional**, test/staging only — generate a proof. Disabled by default; enabled only when `ENABLE_PROOF_GEN_ENDPOINT=true`. |
@@ -79,19 +79,26 @@ responsibility and lives outside this service.
 
 ### Challenge request signing
 
-The [stage values](deploy/stage/orb-stage-v2-eu-central-1/values-world-id-proof-verification.yaml)
-route both hostnames through [attested-proxy](https://github.com/worldcoin/attested-proxy/tree/74ddad08e4aec30b1537aecaaaab80c500cd3bdd).
-Challenge requests must follow its signing profile, using HTTPS authority
-`app.stage.orb.worldcoin.org`. The Rust client's unsigned `challenge()` is rejected.
+The default [stage values](deploy/stage/orb-stage-v2-eu-central-1/values-world-id-proof-verification.yaml)
+run without [attested-proxy](https://github.com/worldcoin/attested-proxy/tree/74ddad08e4aec30b1537aecaaaab80c500cd3bdd),
+so unsigned challenge requests remain accepted during client migration.
+After clients have migrated, the proxy can be enabled with the optional
+[attested-proxy Helm overlay](deploy/stage/orb-stage-v2-eu-central-1/examples/values-attested-proxy.yaml).
+Configure ArgoCD to apply the existing base values first, followed by
+`deploy/stage/orb-stage-v2-eu-central-1/examples/values-attested-proxy.yaml` in
+`valueFiles` order. These paths are repository-relative; use the same ArgoCD
+source/path prefix as the existing base values entry. Apply this as a
+values override, not as a standalone manifest, and do not enable it through
+partial manual changes. Remove the overlay from `valueFiles` to disable the
+proxy again.
 
-Other existing endpoints retain their authentication. The application binds to
-loopback to prevent bypassing the proxy. JWKS failures reject challenges without
-removing verification traffic. Replay storage is disabled: signatures can be
-reused within the 300-second freshness window (60-second future clock skew).
-
-Before rollout, pin an application image supporting `HTTP_ADDR`. ArgoCD currently
-reads `worldcoin/world-id-proof-verification`; promote these changes there
-or update its source. Roll back the image and values together.
+When the proxy is enabled, challenge requests must follow its signing profile,
+using HTTPS authority `app.stage.orb.worldcoin.org`; the Rust client's unsigned
+`challenge()` is rejected. Other existing endpoints retain their authentication.
+The application binds to loopback to prevent bypassing the proxy. JWKS failures
+reject challenges without removing verification traffic. Replay storage is
+disabled: signatures can be reused within the 300-second freshness window
+(60-second future clock skew).
 
 ### Example
 
