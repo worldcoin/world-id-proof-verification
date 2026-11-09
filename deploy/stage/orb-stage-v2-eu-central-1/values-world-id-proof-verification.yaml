@@ -102,7 +102,7 @@ sidecars:
       - name: ATTESTED_PROXY_UNPROTECTED_PATHS
         value: /health,/ready,/api/v1/verify,/api/v4/verify,/api/v1/gen
       - name: RUST_LOG
-        value: info
+        value: debug
       - name: TELEMETRY_PRESET
         value: datadog
       - name: TELEMETRY_SERVICE_NAME
