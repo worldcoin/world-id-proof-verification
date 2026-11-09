@@ -36,7 +36,7 @@ sidecars:
       - name: ATTESTED_PROXY_SCHEME
         value: https
       - name: ATTESTED_PROXY_ISSUERS
-        value: "attestation.worldcoin.dev=https://attestation.worldcoin.dev/.well-known/jwks.json"
+        value: "attestation.worldcoin.dev=https://attestation.worldcoin.dev/.well-known/jwks.json,attestation.sandbox.worldcoin.org=https://attestation.sandbox.worldcoin.org/.well-known/jwks.json,ci.attestation.worldcoin.dev=file:///var/run/secrets/ci-ag-jwks/jwks.json"
       - name: ATTESTED_PROXY_AUDIENCES
         value: attestation.worldcoin.dev,app.stage.orb.worldcoin.org
       - name: ATTESTED_PROXY_UNPROTECTED_PATHS
@@ -85,8 +85,21 @@ sidecars:
       allowPrivilegeEscalation: false
       capabilities:
         drop: ["ALL"]
+    volumeMounts:
+      - name: ci-ag-jwks
+        mountPath: /var/run/secrets/ci-ag-jwks
+        readOnly: true
     # No JWKS readiness probe: verification must remain available during gateway outages.
     livenessProbe:
       httpGet:
         path: /health
         port: admin
+
+# Provision the public CI issuer JWKS in the application Secret before rollout.
+additionalVolumes:
+  - name: ci-ag-jwks
+    secret:
+      secretName: application
+      items:
+        - key: CI_CANONICAL_REQUEST_VERIFICATION_JWKS
+          path: jwks.json
