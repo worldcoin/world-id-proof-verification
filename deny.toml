@@ -12,8 +12,8 @@ unmaintained = "workspace"
 # justification and a removal condition.
 ignore = [
     # Static exposure review and removal conditions are mirrored in .cargo/audit.toml.
-    # Review by 2026-11-09: https://linear.app/worldcoin/issue/POP-4487
-    # Expires 2026-11-10, enforced by CI's waiver check.
+    # Review by 2026-11-19: https://linear.app/worldcoin/issue/POP-4487
+    # Expires 2026-11-20, enforced by CI's waiver check.
     { id = "RUSTSEC-2026-0387", reason = "No current service calls to affected RustCrypto secret-scalar helpers; ownership/Semaphore use Arkworks, JWT verification uses ring, and the KMS client uses patched p256 0.14. Remove after upstream Alloy/world-id-primitives migrations; reassess if usage changes. Tracked in POP-4487." },
 ]
 

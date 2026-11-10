@@ -4,10 +4,10 @@ Thanks for your interest in contributing to `world-id-proof-verification`.
 
 ## Getting started
 
-1. Install a Rust toolchain. The project is built and tested against **Rust 1.95.0**; install the
+1. Install a Rust toolchain. The project is built and tested against **Rust 1.98.1**; install the
    matching toolchain plus the `rustfmt` and `clippy` components:
    ```bash
-   rustup toolchain install 1.95.0 --component rustfmt --component clippy
+   rustup toolchain install 1.98.1 --component rustfmt --component clippy
    ```
 2. Install system build dependencies: `build-essential`, `libssl-dev`, `pkg-config`.
 3. Build and test:

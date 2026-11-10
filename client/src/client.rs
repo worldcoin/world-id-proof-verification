@@ -3,7 +3,14 @@ use std::{sync::Arc, time::Duration};
 use api_types::ChallengeType;
 use api_types::{VerificationMsg, VerificationResult};
 use async_trait::async_trait;
-use reqwest::{StatusCode, Url};
+use attested_request::{
+    base::CanonicalRequest,
+    sign::{Signer, sign_request},
+};
+use reqwest::{
+    Request, StatusCode, Url,
+    header::{HeaderName, HeaderValue},
+};
 
 use crate::auth::AuthProvider;
 
@@ -58,6 +65,10 @@ pub struct Config {
 /// Why [`Client::challenge`] failed.
 #[derive(Debug, thiserror::Error)]
 pub enum ChallengeError {
+    #[error("failed to sign the challenge request: {0}")]
+    Signing(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("challenge signing task failed: {0}")]
+    SigningTask(#[source] tokio::task::JoinError),
     #[error("challenge type must be a single path segment")]
     InvalidChallengeType,
     #[error("request to the proof verification service timed out: {0}")]
@@ -87,6 +98,8 @@ impl Client {
         let http = reqwest::Client::builder()
             .pool_max_idle_per_host(pool_max_idle_per_host)
             .timeout(config.timeout)
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
             .build()
             .map_err(Error::Build)?;
         let host = config.host.trim_end_matches('/').to_owned();
@@ -99,19 +112,24 @@ impl Client {
         })
     }
 
-    /// Asks the service for a single-use challenge of `challenge_type`.
-    ///
-    /// Sends no signature or verify JWT; attested-proxy deployments reject it.
-    /// `Ok` is an HTTP 201 decoded as a [`ChallengeResponse`].
-    pub async fn challenge(
+    /// Requests a challenge signed with the device key bound into `integrity_token`.
+    /// No verification JWT is sent.
+    pub async fn challenge<S>(
         &self,
         challenge_type: ChallengeType,
-    ) -> Result<ChallengeResponse, ChallengeError> {
+        integrity_token: &str,
+        signer: Arc<S>,
+    ) -> Result<ChallengeResponse, ChallengeError>
+    where
+        S: Signer + Send + Sync + 'static,
+        S::Error: std::error::Error + Send + Sync + 'static,
+    {
         let url = challenge_url(&self.base_url, challenge_type)?;
+        let request = self.http.post(url).build().map_err(challenge_transport)?;
+        let request = sign_challenge(request, integrity_token, signer).await?;
         let response = self
             .http
-            .post(url)
-            .send()
+            .execute(request)
             .await
             .map_err(challenge_transport)?;
         let status = response.status();
@@ -146,6 +164,44 @@ impl Client {
         let body = response.bytes().await.map_err(transport_error)?;
         classify_status(status, &body)
     }
+}
+
+// Challenge requests always have an empty body. Hardware signing runs off the async worker.
+async fn sign_challenge<S>(
+    mut request: Request,
+    token: &str,
+    signer: Arc<S>,
+) -> Result<Request, ChallengeError>
+where
+    S: Signer + Send + Sync + 'static,
+    S::Error: std::error::Error + Send + Sync + 'static,
+{
+    let token = token.to_owned();
+    tokio::task::spawn_blocking(move || {
+        let url = request.url();
+        let canonical = CanonicalRequest::new(
+            request.method().as_str(),
+            url.scheme(),
+            url.authority(),
+            url.path(),
+            url.query(),
+            b"",
+        )
+        .map_err(|error| ChallengeError::Signing(error.into()))?;
+        let signed = sign_request(&canonical, &token, signer.as_ref())
+            .map_err(|error| ChallengeError::Signing(error.into()))?;
+        for (name, value) in signed.headers() {
+            let mut value = HeaderValue::from_str(value)
+                .map_err(|error| ChallengeError::Signing(error.into()))?;
+            value.set_sensitive(name == "integrity-token");
+            request
+                .headers_mut()
+                .insert(HeaderName::from_static(name), value);
+        }
+        Ok(request)
+    })
+    .await
+    .map_err(ChallengeError::SigningTask)?
 }
 
 fn classify_status(status: StatusCode, body: &[u8]) -> Result<(), VerificationError> {
@@ -308,6 +364,14 @@ mod tests {
             stub_auth(Ok("test-token".to_owned())),
         )
         .unwrap()
+    }
+
+    fn test_signer() -> Arc<attested_request::test_util::SoftwareSigner> {
+        use attested_request::{
+            Platform,
+            test_util::{SoftwareSigner, test_key},
+        };
+        Arc::new(SoftwareSigner::new(test_key("device"), Platform::Android))
     }
 
     #[test]
@@ -630,7 +694,7 @@ mod tests {
         };
 
         let challenge = client(&url, Duration::from_secs(1))
-            .challenge(ChallengeType::TEEDIMigration)
+            .challenge(ChallengeType::TEEDIMigration, "test-token", test_signer())
             .await
             .unwrap();
 
@@ -657,7 +721,7 @@ mod tests {
         .await;
 
         let error = client(&url, Duration::from_secs(1))
-            .challenge(ChallengeType::Enrollment)
+            .challenge(ChallengeType::Enrollment, "test-token", test_signer())
             .await;
         assert!(
             matches!(
