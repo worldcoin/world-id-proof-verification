@@ -20,7 +20,7 @@ service:
 # Base readiness/liveness probes and ALB health checks continue through the proxy on 8080.
 sidecars:
   - name: attested-proxy
-    image: ghcr.io/worldcoin/attested-proxy:sha-74ddad0@sha256:ef556a8c02c168d6fbaaa8d1e583ee2c51855c342ff86145dfc71769c0ac4612
+    image: ghcr.io/worldcoin/attested-proxy:sha-9b42aae@sha256:795e48b3cbb163266224469a0e6d56449281e4690b9bb1135e07dc4b0a648b61
     ports:
       - name: proxy
         containerPort: 8080
@@ -35,10 +35,8 @@ sidecars:
         value: app.stage.orb.worldcoin.org
       - name: ATTESTED_PROXY_SCHEME
         value: https
-      - name: ATTESTED_PROXY_ISSUER
-        value: ci.attestation.worldcoin.dev
-      - name: ATTESTED_PROXY_JWKS_URL
-        value: https://attestation.worldcoin.dev/.well-known/jwks.json
+      - name: ATTESTED_PROXY_ISSUERS
+        value: "attestation.worldcoin.dev=https://attestation.worldcoin.dev/.well-known/jwks.json,attestation.sandbox.worldcoin.org=https://attestation.sandbox.worldcoin.org/.well-known/jwks.json,ci.attestation.worldcoin.dev=file:///var/run/secrets/ci-ag-jwks/jwks.json"
       - name: ATTESTED_PROXY_AUDIENCES
         value: attestation.worldcoin.dev,app.stage.orb.worldcoin.org
       - name: ATTESTED_PROXY_UNPROTECTED_PATHS
@@ -54,7 +52,7 @@ sidecars:
       - name: DD_ENV
         value: stage
       - name: DD_VERSION
-        value: sha-74ddad0
+        value: sha-9b42aae
       - name: DD_ENTITY_ID
         valueFrom:
           fieldRef:
@@ -87,8 +85,21 @@ sidecars:
       allowPrivilegeEscalation: false
       capabilities:
         drop: ["ALL"]
+    volumeMounts:
+      - name: ci-ag-jwks
+        mountPath: /var/run/secrets/ci-ag-jwks
+        readOnly: true
     # No JWKS readiness probe: verification must remain available during gateway outages.
     livenessProbe:
       httpGet:
         path: /health
         port: admin
+
+# Provision the public CI issuer JWKS in the application Secret before rollout.
+additionalVolumes:
+  - name: ci-ag-jwks
+    secret:
+      secretName: application
+      items:
+        - key: CI_CANONICAL_REQUEST_VERIFICATION_JWKS
+          path: jwks.json
