@@ -93,12 +93,17 @@ partial manual changes. Remove the overlay from `valueFiles` to disable the
 proxy again.
 
 When the proxy is enabled, challenge requests must follow its signing profile,
-using HTTPS authority `app.stage.orb.worldcoin.org`; the Rust client's unsigned
-`challenge()` is rejected. Other existing endpoints retain their authentication.
+using HTTPS authority `app.stage.orb.worldcoin.org`; unsigned requests are rejected.
+Other existing endpoints retain their authentication.
 The application binds to loopback to prevent bypassing the proxy. JWKS failures
 reject challenges without removing verification traffic. Replay storage is
 disabled: signatures can be reused within the 300-second freshness window
 (60-second future clock skew).
+
+The Rust client's `challenge(type, token, signer)` signs each request using the
+supplied integrity token and matching request key. The stage CI example needs
+only the CI issuer private key and generates request credentials in memory. See
+[client usage and CI setup](client/README.md).
 
 ### Example
 
@@ -112,7 +117,7 @@ curl -i http://localhost:8080/health
 
 ## Build
 
-Requires a Rust toolchain (the project is built and tested against **Rust 1.95.0**) and the usual
+Requires a Rust toolchain (the project is built and tested against **Rust 1.98.1**) and the usual
 system build dependencies (`build-essential`, `libssl-dev`, `pkg-config`). OpenSSL is built
 vendored, so no system OpenSSL dev headers are strictly required at link time.
 

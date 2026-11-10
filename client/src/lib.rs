@@ -1,12 +1,12 @@
-//! World ID 4.x (WIP-103) client for world-id-proof-verification.
+//! World ID 4.x client for world-id-proof-verification.
 //!
-//! [`Client::challenge`] requests a single-use challenge. [`Client::verify`]
-//! submits an ownership proof for that challenge's id. The nonce is not sent
-//! again on verify; the service loads it from the stored challenge.
+//! [`Client::challenge`] signs with the supplied integrity token and [`Signer`].
+//! [`Client::verify`] authenticates using the service JWT provider.
 
 mod auth;
 mod client;
 
+pub use attested_request::sign::Signer;
 pub use auth::{AuthError, AuthProvider, JwtAuthProvider};
 pub use client::{
     ChallengeError, ChallengeResponse, Client, Config, Error, ProofVerificationClient, VERIFY_PATH,
