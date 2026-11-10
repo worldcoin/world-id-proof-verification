@@ -40,10 +40,10 @@ jobs:
           persist-credentials: false
 
       # Pin via rustup instead of a toolchain action so cargo/rustc resolve to the MSRV.
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.98.1
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
 
       # Vendored OpenSSL still needs native build tooling and pkg-config available.
       - name: Install system build dependencies
@@ -85,10 +85,10 @@ jobs:
           persist-credentials: false
 
       # rustfmt and clippy are installed only where the lint job needs them.
-      - name: Install Rust 1.95.0 with lint components
+      - name: Install Rust 1.98.1 with lint components
         run: |
-          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
-          rustup default 1.95.0
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+          rustup default 1.98.1
 
       # Clippy compiles the crate, so keep the vendored OpenSSL build dependencies here too.
       - name: Install system build dependencies
@@ -127,10 +127,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Rust 1.95.0 with lint components
+      - name: Install Rust 1.98.1 with lint components
         run: |
-          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
-          rustup default 1.95.0
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+          rustup default 1.98.1
 
       # reqwest and the AWS SDK build native crates (ring / aws-lc). No Noir
       # toolchain: this job does not compile the service or its circuit.
@@ -170,7 +170,7 @@ jobs:
           import tomllib
 
           advisory = "RUSTSEC-2026-0387"
-          expires = date(2026, 11, 10)
+          expires = date(2026, 11, 20)
           today = datetime.now(timezone.utc).date()
           for filename in (".cargo/audit.toml", "deny.toml"):
               config = tomllib.loads(Path(filename).read_text())
@@ -184,10 +184,10 @@ jobs:
           PY
 
       # Pin via rustup so cargo resolves to the same MSRV used by build and lint jobs.
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.98.1
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
 
       - name: Cache cargo registry and build outputs
         uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
@@ -212,10 +212,10 @@ jobs:
           persist-credentials: false
 
       # Pin via rustup so cargo resolves to the same MSRV used by build and lint jobs.
-      - name: Install Rust 1.95.0
+      - name: Install Rust 1.98.1
         run: |
-          rustup toolchain install 1.95.0 --profile minimal
-          rustup default 1.95.0
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
 
       - name: Cache cargo registry and build outputs
         uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1

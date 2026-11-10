@@ -11,7 +11,7 @@ ignore = [
     # RustCrypto signer/AAT helpers. Ownership/Semaphore crypto uses Arkworks;
     # HTTP JWT verification uses ring. The client signs in KMS and now parses
     # signatures with p256 0.14 / patched crypto-bigint 0.7.10.
-    # Review by 2026-11-09; expires 2026-11-10, enforced by CI's waiver check.
+    # Review by 2026-11-19; expires 2026-11-20, enforced by CI's waiver check.
     # Follow-up: https://linear.app/worldcoin/issue/POP-4487
     # Remove when upstream migrations eliminate affected crypto-bigint versions.
     # Reassess immediately if RustCrypto secret-scalar operations become reachable.

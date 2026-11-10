@@ -2,7 +2,7 @@
 name = "api-types"
 version = "0.1.0"
 edition = "2024"
-# Matches this repo's CI toolchain. The crate does not use newer language features.
+# These shared types retain compatibility with Rust 1.95.
 rust-version = "1.95"
 license = "MIT"
 publish = false
