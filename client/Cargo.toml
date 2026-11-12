@@ -11,7 +11,7 @@ description = "Client for World ID 4.x ownership proofs"
 [dependencies]
 api-types = { version = "0.1.0", path = "../api-types" }
 async-trait = "0.1"
-attested-request = "=0.1.1"
+attested-request = "0.1.1"
 aws-sdk-kms = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22"
 p256 = { version = "0.14", default-features = false, features = ["ecdsa"] }
@@ -25,5 +25,5 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"]
 p256 = { version = "0.14", default-features = false, features = ["ecdsa", "getrandom", "pem", "pkcs8"] }
 zeroize = "1"
 attested-request-tower = "=0.1.1"
-attested-request = { version = "=0.1.1", features = ["test-util"] }
+attested-request = { version = "0.1.1", features = ["test-util"] }
 axum = "0.8"
