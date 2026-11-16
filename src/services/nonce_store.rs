@@ -176,6 +176,7 @@ mod tests {
             created_at: now,
             expires_at: now + chrono::Duration::seconds(600),
             issuer: "test".to_string(),
+            binding: None,
         }
     }
 

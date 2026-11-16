@@ -14,7 +14,7 @@ mod test_ownership_endpoint {
     use world_id_proof_verification::{
         app::{create_app, AppDeps},
         models::{
-            challenge_model::{ChallengeId, ChallengeType, NonceObject},
+            challenge_model::{ChallengeBinding, ChallengeId, ChallengeType, NonceObject},
             ownership_model::{
                 CredentialSub, OwnershipProof, OwnershipVerificationMsg,
                 OwnershipVerificationRequest, OwnershipVerificationResult,
@@ -62,6 +62,7 @@ mod test_ownership_endpoint {
             created_at: now,
             expires_at: now + chrono::Duration::seconds(600),
             issuer: "test".to_string(),
+            binding: None,
         }
     }
 
@@ -157,6 +158,57 @@ mod test_ownership_endpoint {
         assert_eq!(body.msg, OwnershipVerificationMsg::ProofAccepted);
         // GETDEL removed it from Redis.
         assert_eq!(store.peek(&id).await.unwrap(), None);
+    }
+
+    fn bound_nonce_object(sub: u64) -> NonceObject {
+        NonceObject {
+            binding: Some(ChallengeBinding {
+                sub: FieldElement::from(sub),
+                capture_digest: "ab".repeat(32),
+            }),
+            ..nonce_object()
+        }
+    }
+
+    // `sample_request` proves ownership of subject 7.
+    #[tokio::test]
+    async fn accepts_a_bound_challenge_for_its_subject_and_burns_the_nonce() {
+        let store = redis_store().await;
+        let id = ChallengeId::new_v4();
+        store.put(&id, &bound_nonce_object(7), TTL).await.unwrap();
+
+        let resp = post(deps_with(store.clone(), RootVerdict::Valid, true), id).await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(store.peek(&id).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn rejects_a_bound_challenge_for_another_subject_without_burning() {
+        let store = redis_store().await;
+        let id = ChallengeId::new_v4();
+        let stored = bound_nonce_object(8);
+        store.put(&id, &stored, TTL).await.unwrap();
+
+        // An accepting gateway and verifier: only the binding can reject this.
+        let resp = post(deps_with(store.clone(), RootVerdict::Valid, true), id).await;
+
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        let body: OwnershipVerificationResult = body_json(resp).await;
+        assert_eq!(body.msg, OwnershipVerificationMsg::ProofRejected);
+        assert_eq!(store.peek(&id).await.unwrap(), Some(stored));
+    }
+
+    #[tokio::test]
+    async fn a_subject_mismatch_is_rejected_before_the_gateway_is_consulted() {
+        let id = ChallengeId::new_v4();
+        let store = Arc::new(MockNonceStore::with(id, bound_nonce_object(8)));
+
+        // A failing gateway would turn this into a 503 if it were reached.
+        let resp = post(deps_with(store.clone(), RootVerdict::Error, true), id).await;
+
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(store.consume_calls(), 0);
     }
 
     #[tokio::test]

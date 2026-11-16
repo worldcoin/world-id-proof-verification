@@ -137,6 +137,7 @@ mod test_verification_endpoint {
             created_at: now,
             expires_at: now + Duration::seconds(600),
             issuer: "test".to_string(),
+            binding: None,
         }
     }
 

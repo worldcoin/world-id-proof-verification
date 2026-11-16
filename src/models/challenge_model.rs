@@ -37,10 +37,27 @@ pub struct Challenge {
     pub nonce: Nonce,
 }
 
+/// What a challenge was issued for, when issuance authenticated a specific capture.
+///
+/// Verification accepts a bound challenge only for `sub`, so a challenge
+/// obtained with one subject's evidence cannot prove ownership of another.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChallengeBinding {
+    /// The subject the issuance evidence covered.
+    pub sub: FieldElement,
+    /// Lowercase hex SHA-256 digest of the capture the evidence covered. Kept
+    /// for issuance accounting and audit; verification does not check it.
+    pub capture_digest: String,
+}
+
 /// The record stored under a [`ChallengeId`] and consumed once at verification.
 ///
 /// The verify endpoint accepts enrollment and TEE DI migration challenges.
 /// `expires_at` is advisory; the Redis key TTL is the authority on expiration.
+///
+/// `binding` is absent on unbound challenges and omitted from their stored
+/// JSON, so records written before the field existed still decode, and records
+/// written without it are byte-identical to the earlier format.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NonceObject {
     pub nonce: Nonce,
@@ -48,6 +65,8 @@ pub struct NonceObject {
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub issuer: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding: Option<ChallengeBinding>,
 }
 
 #[cfg(test)]
@@ -82,10 +101,42 @@ mod tests {
                 .unwrap()
                 .with_timezone(&Utc),
             issuer: "challenge-endpoint".to_string(),
+            binding: None,
         };
         let json = serde_json::to_string(&obj).unwrap();
         // The nonce is stored as its canonical field-element string, not bytes.
         assert!(json.contains(&format!("0x{}1", "0".repeat(63))));
+        let decoded: NonceObject = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, obj);
+    }
+
+    /// Unbound challenges keep the stored format that predates `binding`, in
+    /// both directions, so pods on either image can share the store.
+    #[test]
+    fn unbound_nonce_object_keeps_the_earlier_stored_format() {
+        let earlier = format!(
+            r#"{{"nonce":"0x{}1","challenge_type":"enrollment","created_at":"2026-07-03T00:00:00Z","expires_at":"2026-07-03T00:10:00Z","issuer":"challenge-endpoint"}}"#,
+            "0".repeat(63)
+        );
+        let decoded: NonceObject = serde_json::from_str(&earlier).unwrap();
+        assert_eq!(decoded.binding, None);
+        assert_eq!(serde_json::to_string(&decoded).unwrap(), earlier);
+    }
+
+    #[test]
+    fn bound_nonce_object_json_roundtrips() {
+        let mut obj: NonceObject = serde_json::from_str(&format!(
+            r#"{{"nonce":"0x{}1","challenge_type":"enrollment","created_at":"2026-07-03T00:00:00Z","expires_at":"2026-07-03T00:10:00Z","issuer":"test"}}"#,
+            "0".repeat(63)
+        ))
+        .unwrap();
+        obj.binding = Some(ChallengeBinding {
+            sub: FieldElement::from(31u64),
+            capture_digest: "ab".repeat(32),
+        });
+        let json = serde_json::to_string(&obj).unwrap();
+        // The bound subject uses the same canonical encoding as the nonce.
+        assert!(json.contains(&format!("0x{}1f", "0".repeat(62))));
         let decoded: NonceObject = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, obj);
     }
