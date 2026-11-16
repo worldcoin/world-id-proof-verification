@@ -54,3 +54,37 @@ service:world-id-proof-verification env:stage @http.status_code:401 @auth.outcom
 Use the response's `x-request-id` to find related logs with
 `@request_id:<x-request-id>`. Count `authentication_rejected` events when measuring
 auth failures, since each rejected request also has a separate HTTP outcome log.
+
+## Nitro-authenticated challenge issuance
+
+With `ENABLE_NITRO_CHALLENGE`, `POST /api/v4/zkp/challenge/enrollment` records
+`auth.outcome` for callers authenticated by Nitro capture evidence, and
+`auth.error_kind` when that evidence is refused. Callers the proxy verified, and
+other challenge types, omit both fields as before. Each refusal logs
+`stage=capture_authentication` at `WARN` (`ERROR` for a `503`) and increments
+`challenge.nitro.rejected` tagged with `class`; each acceptance increments
+`challenge.nitro.accepted`.
+
+| `auth.error_kind` / `class` | Status | Meaning |
+|---|---|---|
+| `missing_evidence` | 401 | Neither proxy identity headers nor an attestation header. |
+| `malformed` | 400 | Attestation header or capture fields are not canonical. |
+| `too_large` | 413 | Capture body exceeds 128 KiB. |
+| `document` | 401 | The attestation is not a well-formed capture document. |
+| `trust` | 401 | Signature or certificate chain does not lead to the AWS Nitro root. |
+| `release` | 401 | Enclave measurements are not an approved release. |
+| `freshness` | 401 | Document or capture time is outside the accepted window. |
+| `binding` | 401 | The document does not cover the presented capture. |
+| `rate_limited` | 429 | The capture reached its challenge allowance. |
+| `saturated` | 503 | Concurrent verifications are at `NITRO_VERIFY_CONCURRENCY`. |
+| `unavailable` | 503 | The issuance counter or the verification task failed. |
+
+A sustained `release` rate after an enclave rollout means the release policy
+is behind the deployed enclave. A sustained `trust` rate with no deployment
+change is worth treating as probing. Subjects, capture digests and document
+contents are never logged or used as metric tags.
+
+```text
+service:world-id-proof-verification env:stage @stage:capture_authentication
+service:world-id-proof-verification env:stage @stage:capture_authentication @error_kind:release
+```

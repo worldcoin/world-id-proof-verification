@@ -18,6 +18,7 @@ use world_id_proof_verification::clients::gateway::{
 };
 use world_id_proof_verification::services::gateway_service::GatewayService;
 use world_id_proof_verification::services::jwt_auth::JwtKeyStore;
+use world_id_proof_verification::services::nitro::capture_verifier_from_config;
 use world_id_proof_verification::services::nonce_store::{
     DynNonceStore, RedisConfig, RedisNonceStore,
 };
@@ -145,12 +146,18 @@ async fn run(cfg: config::Config) -> Result<()> {
         })
         .await?,
     );
+    // Fail fast: never enable Nitro-authenticated issuance half-configured.
+    let capture_verifier = startup_step("nitro_challenge_init", async {
+        capture_verifier_from_config(&cfg)
+    })
+    .await?;
     let deps = AppDeps {
         verifier: Arc::new(SemaphoreVerifier) as DynProofVerifier,
         nonce_store,
         gateway: Arc::new(GatewayService::new(gateway_client)),
         ownership_verifier,
         jwt_keys,
+        capture_verifier,
     };
 
     let http_addr = cfg.http_addr;

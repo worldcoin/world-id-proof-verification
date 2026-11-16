@@ -40,6 +40,8 @@ pub struct MockNonceStore {
     fail_peek: bool,
     fail_consume: bool,
     fail_ping: bool,
+    fail_count: bool,
+    issuances: Mutex<HashMap<String, u64>>,
 }
 
 impl MockNonceStore {
@@ -52,7 +54,27 @@ impl MockNonceStore {
             fail_peek: false,
             fail_consume: false,
             fail_ping: false,
+            fail_count: false,
+            issuances: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub fn failing_count() -> Self {
+        Self {
+            fail_count: true,
+            ..Self::empty()
+        }
+    }
+
+    /// The only stored challenge, for tests that issue exactly one.
+    pub fn only_entry(&self) -> NonceObject {
+        let entries = self.entries.lock().unwrap();
+        assert_eq!(entries.len(), 1, "expected exactly one stored challenge");
+        entries.values().next().unwrap().clone()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.lock().unwrap().is_empty()
     }
 
     pub fn failing_put() -> Self {
@@ -145,6 +167,16 @@ impl NonceStore for MockNonceStore {
         }
         Ok(())
     }
+
+    async fn count_issuance(&self, key: &str, _window: Duration) -> Result<u64, NonceStoreError> {
+        if self.fail_count {
+            return Err(NonceStoreError::Backend("mock count failure".into()));
+        }
+        let mut issuances = self.issuances.lock().unwrap();
+        let count = issuances.entry(key.to_owned()).or_default();
+        *count += 1;
+        Ok(*count)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -223,6 +255,7 @@ pub fn deps_with(nonce_store: DynNonceStore, root: RootVerdict, accept_proof: bo
         gateway,
         ownership_verifier,
         jwt_keys: test_jwt_keys(),
+        capture_verifier: None,
     }
 }
 
@@ -239,6 +272,7 @@ pub fn deps_with_verifier(
         gateway,
         ownership_verifier,
         jwt_keys: test_jwt_keys(),
+        capture_verifier: None,
     }
 }
 
@@ -255,6 +289,7 @@ pub fn deps_with_v1_verifier(
         gateway,
         ownership_verifier: Arc::new(MockOwnershipVerifier::new(true)),
         jwt_keys: test_jwt_keys(),
+        capture_verifier: None,
     }
 }
 
@@ -287,6 +322,10 @@ pub fn test_config() -> Config {
         jwt_trusted_keys: test_jwt_trusted_keys_json(),
         max_body_bytes: bytesize::ByteSize::mib(1),
         verify_timeout: Duration::from_secs(5),
+        enable_nitro_challenge: false,
+        nitro_release_policy: String::new(),
+        nitro_challenge_max_per_capture: 5,
+        nitro_verify_concurrency: NonZeroUsize::new(2).unwrap(),
     }
 }
 

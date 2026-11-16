@@ -92,6 +92,7 @@ async fn request_outcome_logs_include_validated_challenge_type() {
             created_at: now,
             expires_at: now + chrono::Duration::minutes(10),
             issuer: "test".to_owned(),
+            binding: None,
         },
     ));
     let proof = encode_proof(

@@ -105,6 +105,48 @@ supplied integrity token and matching request key. The stage CI example needs
 only the CI issuer private key and generates request credentials in memory. See
 [client usage and CI setup](client/README.md).
 
+### Nitro capture evidence
+
+A browser has no device attestation to sign with. With `ENABLE_NITRO_CHALLENGE`,
+`POST /api/v4/zkp/challenge/enrollment` also accepts the evidence a capture
+enclave returns for one capture:
+
+- header `X-Nitro-Attestation`: the enclave's attestation document, standard
+  padded base64;
+- a JSON body holding exactly the twelve attested capture fields, unchanged.
+
+The service recomputes the capture's binding digest from those fields and
+verifies the document's signature, its certificate chain to the AWS Nitro root,
+the enclave release against `NITRO_RELEASE_POLICY`, its freshness, and that it
+covers that digest. The challenge it then issues is bound to the attested
+subject: `POST /api/v4/verify` accepts it only for that `credential_sub`. The
+contract is the enclave's, published in
+[`biometrics-tee`](https://github.com/worldcoin/biometrics-tee/blob/main/selfie-enrollment/identity/protocol.md).
+
+Per request, the route issues a challenge to a caller attested-proxy verified
+(identified by the identity headers only the proxy can set), or to one with
+valid capture evidence, and to no one else. This relies on two deployment
+conditions, the first of which startup enforces:
+
+- the service listens on loopback, so attested-proxy is the only way in;
+- the proxy lists this exact path in `ATTESTED_PROXY_OPTIONAL_PATHS`, so it
+  verifies signed requests and forwards unsigned ones without identity headers.
+  Set that only together with `ENABLE_NITRO_CHALLENGE`: a proxy that forwards
+  unsigned requests to a service that is not enforcing would issue challenges
+  to anyone.
+
+| Outcome | Status | `msg` |
+|---|---|---|
+| Malformed header, fields or encoding | `400` | `malformed_request` |
+| Body over 128 KiB | `413` | `request_too_large` |
+| Neither a verified device nor capture evidence | `401` | `unauthorized` |
+| Signature, chain, release or binding rejected | `401` | `attestation_rejected` |
+| Document older than 5 minutes, or capture time out of range | `401` | `attestation_expired` |
+| The capture reached `NITRO_CHALLENGE_MAX_PER_CAPTURE` | `429`, with `Retry-After` | `challenge_limit_reached` |
+| Redis unavailable, or verification saturated | `503` | — |
+
+An expired attestation cannot be refreshed: the caller has to capture again.
+
 ### Example
 
 ```bash
@@ -184,6 +226,10 @@ Configuration is read from CLI flags or environment variables (see `src/cfg/conf
 | `REDIS_COMMAND_TIMEOUT_MS`   | `2000`        | Per-command (and connect) Redis deadline, in ms. Bounds how long a slow/unreachable Redis blocks a request before it **fails closed**. |
 | `GATEWAY_URL`                | — (required)  | Base URL of the World ID gateway exposing `GET /is-valid-root`. **No default** — the service refuses to start if unset. Must point at a real gateway, not this service's own bind port (`8080`). |
 | `GATEWAY_TIMEOUT`            | `2s`          | Per-request deadline for the gateway call (humantime, e.g. `2s`, `500ms`). |
+| `ENABLE_NITRO_CHALLENGE`     | `false`       | Lets a caller without a proxy-verified device identity obtain an enrollment challenge with Nitro capture evidence. Startup fails unless `HTTP_ADDR` is loopback and `NITRO_RELEASE_POLICY` approves at least one release. See [Nitro capture evidence](#nitro-capture-evidence). |
+| `NITRO_RELEASE_POLICY`       | empty         | Approved capture-enclave releases: a JSON array of `{"pcr0","pcr1","pcr2","worker_sha384"}` objects, 96 lowercase hex characters each. Empty approves nothing. |
+| `NITRO_CHALLENGE_MAX_PER_CAPTURE` | `5`      | Challenges one attested capture may obtain within `CHALLENGE_TTL`. |
+| `NITRO_VERIFY_CONCURRENCY`   | `2`           | Max concurrent Nitro attestation verifications; further requests get `503`. |
 | `JWT_TRUSTED_KEYS`           | — (required)  | Trusted JWT public keys for `POST /api/v4/verify`, as a JSON object mapping each service name (`sub`) to `{"current": "<PEM SPKI>", "previous"?: "<PEM SPKI>"}`. **No default** — the service refuses to start if unset, empty, or holding an invalid key. See [Authentication](#authentication). |
 
 A Datadog agent is expected at `DD_AGENT_HOST` for telemetry export.

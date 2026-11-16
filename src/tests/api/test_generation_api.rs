@@ -34,6 +34,10 @@ mod test_generation_endpoint {
             jwt_trusted_keys: crate::tests::support::test_jwt_trusted_keys_json(),
             max_body_bytes: bytesize::ByteSize::kib(512),
             verify_timeout: std::time::Duration::from_secs(5),
+            enable_nitro_challenge: false,
+            nitro_release_policy: String::new(),
+            nitro_challenge_max_per_capture: 5,
+            nitro_verify_concurrency: std::num::NonZeroUsize::new(2).unwrap(),
         }
     }
 

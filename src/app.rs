@@ -1,4 +1,4 @@
-use crate::api::challenge_api::issue_challenge;
+use crate::api::challenge_api::{issue_challenge, ChallengeState, NitroChallengeAuth};
 use crate::api::generation_api::gen_proof;
 use crate::api::health_api::{health_check, ready_check};
 use crate::api::ownership_api::{verify_ownership, OwnershipVerificationState};
@@ -8,6 +8,7 @@ use crate::observability::{log_request, request_span};
 use crate::services::challenge_generator::{DynChallengeGenerator, OsRngChallengeGenerator};
 use crate::services::gateway_service::GatewayService;
 use crate::services::jwt_auth::JwtKeyStore;
+use crate::services::nitro::document::DynCaptureVerifier;
 use crate::services::nonce_store::DynNonceStore;
 use crate::services::ownership_proof_verifier::DynOwnershipProofVerifier;
 use crate::services::proof_generator::{DynProofGenerator, SemaphoreProofGenerator};
@@ -28,6 +29,9 @@ pub struct AppDeps {
     pub gateway: Arc<GatewayService>,
     pub ownership_verifier: DynOwnershipProofVerifier,
     pub jwt_keys: Arc<JwtKeyStore>,
+    /// Present only when Nitro-authenticated challenge issuance is enabled;
+    /// see [`crate::services::nitro::capture_verifier_from_config`].
+    pub capture_verifier: Option<DynCaptureVerifier>,
 }
 
 /// Shared application state cloned into each request by axum. Handlers pull the
@@ -43,6 +47,18 @@ pub struct AppState {
     ownership_verifier: DynOwnershipProofVerifier,
     verification_slots: Arc<Semaphore>,
     jwt_keys: Arc<JwtKeyStore>,
+    nitro_challenge: Option<NitroChallengeAuth>,
+}
+
+impl FromRef<AppState> for ChallengeState {
+    fn from_ref(state: &AppState) -> Self {
+        Self {
+            cfg: state.cfg.clone(),
+            nonce_store: state.nonce_store.clone(),
+            generator: state.challenge_generator.clone(),
+            nitro: state.nitro_challenge.clone(),
+        }
+    }
 }
 
 impl FromRef<AppState> for Config {
@@ -112,6 +128,8 @@ impl FromRef<AppState> for OwnershipVerificationState {
 /// * `POST /api/v4/verify` — verify a 4.x ownership proof against a single-use
 ///   challenge. Requires a valid `Authorization: Bearer` ES256 JWT.
 /// * `POST /api/v4/zkp/challenge/{challenge_type}` — issue a single-use challenge.
+///   With `enable_nitro_challenge`, an enrollment challenge also accepts Nitro
+///   capture evidence in place of a proxy-verified device identity.
 /// * `GET  /health` — liveness (service name and version).
 /// * `GET  /ready` — readiness (nonce-store Redis `PING`).
 /// * `POST /api/v1/gen` — optional, registered only when `enable_proof_gen_endpoint`.
@@ -123,6 +141,11 @@ pub fn create_app(cfg: Config, deps: AppDeps) -> Router {
     let logging_config = cfg.clone();
     let enable_proof_gen_endpoint = cfg.enable_proof_gen_endpoint;
     let verification_slots = Arc::new(Semaphore::new(cfg.verification_concurrency.get()));
+    let nitro_challenge = deps.capture_verifier.map(|verifier| NitroChallengeAuth {
+        verifier,
+        verification_slots: Arc::new(Semaphore::new(cfg.nitro_verify_concurrency.get())),
+        max_per_capture: cfg.nitro_challenge_max_per_capture,
+    });
     let state = AppState {
         cfg,
         verifier: deps.verifier,
@@ -132,6 +155,7 @@ pub fn create_app(cfg: Config, deps: AppDeps) -> Router {
         ownership_verifier: deps.ownership_verifier,
         verification_slots,
         jwt_keys: deps.jwt_keys,
+        nitro_challenge,
     };
 
     let mut app = Router::new()
