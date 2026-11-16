@@ -5,6 +5,8 @@
 //! `nonce` is the capture's binding digest, `user_data` is a version byte and
 //! the worker's SHA-384, and `public_key` is absent.
 
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use ciborium::value::Value;
 use openssl::bn::BigNum;
@@ -89,6 +91,32 @@ pub struct CaptureBinding {
     pub nonce: [u8; NONCE_BYTES],
     /// The capture's own timestamp, in Unix seconds.
     pub captured_at: i64,
+}
+
+/// The port capture evidence is authenticated through, so callers and tests
+/// can substitute the verifier.
+pub trait CaptureEvidenceVerifier: Send + Sync {
+    /// Whether `document` is fresh evidence from an approved enclave covering
+    /// `binding`. `now` must be this service's clock.
+    fn verify(
+        &self,
+        document: &[u8],
+        binding: &CaptureBinding,
+        now: DateTime<Utc>,
+    ) -> Result<(), AttestationError>;
+}
+
+pub type DynCaptureVerifier = Arc<dyn CaptureEvidenceVerifier>;
+
+impl CaptureEvidenceVerifier for CaptureVerifier {
+    fn verify(
+        &self,
+        document: &[u8],
+        binding: &CaptureBinding,
+        now: DateTime<Utc>,
+    ) -> Result<(), AttestationError> {
+        CaptureVerifier::verify(self, document, binding, now)
+    }
 }
 
 /// Authenticates Nitro capture evidence against a release policy and a

@@ -20,6 +20,15 @@ impl RequestLogSpan {
     pub fn record_challenge_type(&self, challenge_type: ChallengeType) {
         self.0.record("challenge_type", challenge_type.as_str());
     }
+
+    pub fn record_auth_accepted(&self) {
+        self.0.record("auth.outcome", "accepted");
+    }
+
+    pub fn record_auth_rejected(&self, error_kind: &'static str) {
+        self.0.record("auth.outcome", "rejected");
+        self.0.record("auth.error_kind", error_kind);
+    }
 }
 
 /// INFO keeps request fields available to the JSON formatter at RUST_LOG=info.

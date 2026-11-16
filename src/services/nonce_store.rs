@@ -15,6 +15,7 @@ use tracing::instrument;
 use crate::models::challenge_model::{ChallengeId, NonceObject};
 
 const KEY_PREFIX: &str = "nonce:";
+const ISSUANCE_KEY_PREFIX: &str = "issuance:";
 
 /// Failure of a [`NonceStore`] operation. Callers treat every variant as
 /// failure: issuance returns 503, consumption rejects.
@@ -61,6 +62,11 @@ pub trait NonceStore: Send + Sync {
 
     /// Liveness probe for the backend (a Redis `PING`), for readiness checks.
     async fn ping(&self) -> Result<(), NonceStoreError>;
+
+    /// Counts one issuance against `key` and returns the total within the
+    /// current window. The window starts at the first issuance and is never
+    /// extended, so a busy key still expires.
+    async fn count_issuance(&self, key: &str, window: Duration) -> Result<u64, NonceStoreError>;
 }
 
 pub type DynNonceStore = Arc<dyn NonceStore>;
@@ -149,6 +155,27 @@ impl NonceStore for RedisNonceStore {
         let _: String = redis::cmd("PING").query_async(&mut conn).await?;
         Ok(())
     }
+
+    #[instrument(skip(self, key))]
+    async fn count_issuance(&self, key: &str, window: Duration) -> Result<u64, NonceStoreError> {
+        let key = format!("{ISSUANCE_KEY_PREFIX}{key}");
+        let mut conn = self.conn.clone();
+        // One transaction: `SET .. NX EX` creates the counter with its expiry
+        // only if absent, so the key can never be left without a TTL.
+        let (count,): (u64,) = redis::pipe()
+            .atomic()
+            .cmd("SET")
+            .arg(&key)
+            .arg(0)
+            .arg("EX")
+            .arg(window.as_secs().max(1))
+            .arg("NX")
+            .ignore()
+            .incr(&key, 1)
+            .query_async(&mut conn)
+            .await?;
+        Ok(count)
+    }
 }
 
 #[cfg(test)]
@@ -213,6 +240,28 @@ mod tests {
         // consume removes it; a later peek finds it gone.
         assert_eq!(store.consume(&id).await.unwrap().as_ref(), Some(&obj));
         assert_eq!(store.peek(&id).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn issuances_are_counted_within_a_window_that_is_not_extended() {
+        let store = test_store().await;
+        let key = ChallengeId::new_v4().to_string();
+        let window = Duration::from_secs(60);
+        assert_eq!(store.count_issuance(&key, window).await.unwrap(), 1);
+        assert_eq!(store.count_issuance(&key, window).await.unwrap(), 2);
+        // A later, longer window must not push the expiry out.
+        let later = Duration::from_secs(600);
+        assert_eq!(store.count_issuance(&key, later).await.unwrap(), 3);
+        let mut conn = store.conn.clone();
+        let ttl: i64 = redis::cmd("TTL")
+            .arg(format!("{ISSUANCE_KEY_PREFIX}{key}"))
+            .query_async(&mut conn)
+            .await
+            .unwrap();
+        assert!((1..=60).contains(&ttl), "issuance counter TTL was {ttl}s");
+
+        let other = ChallengeId::new_v4().to_string();
+        assert_eq!(store.count_issuance(&other, window).await.unwrap(), 1);
     }
 
     #[tokio::test]

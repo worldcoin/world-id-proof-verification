@@ -25,6 +25,10 @@ use clap::Parser;
 /// * `gateway_timeout`: A `Duration` bounding each gateway request, parsed from a humantime string (e.g. "2s").
 /// * `max_body_bytes`: A `bytesize::ByteSize` hard ceiling on request body size, enforced before the body is buffered/parsed.
 /// * `verify_timeout`: A `Duration` bounding the CPU-pool ZK verification call, humantime-parsed (default "5s").
+/// * `enable_nitro_challenge`: A `bool` enabling Nitro-authenticated enrollment challenges (default `false`).
+/// * `nitro_release_policy`: A `String` JSON array of approved capture-enclave releases (default empty).
+/// * `nitro_challenge_max_per_capture`: A `u64` cap on challenges per attested capture within `challenge_ttl` (default 5).
+/// * `nitro_verify_concurrency`: A `NonZeroUsize` bounding concurrent Nitro attestation verifications (default 2).
 ///
 /// # Examples
 ///
@@ -52,6 +56,10 @@ use clap::Parser;
 ///     jwt_trusted_keys: r#"{"svc":{"current":"-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"}}"#.to_string(),
 ///     max_body_bytes: bytesize::ByteSize::mib(1),
 ///     verify_timeout: Duration::from_secs(5),
+///     enable_nitro_challenge: false,
+///     nitro_release_policy: String::new(),
+///     nitro_challenge_max_per_capture: 5,
+///     nitro_verify_concurrency: std::num::NonZeroUsize::new(2).unwrap(),
 /// };
 /// assert_eq!(config.srv_env, "prod");
 /// assert_eq!(config.srv_name, "world-id-proof-verification");
@@ -131,6 +139,25 @@ pub struct Config {
     /// Deadline for the CPU-pool ZK verification call, humantime-parsed.
     #[arg(long, env, value_parser = humantime::parse_duration, default_value = "5s")]
     pub verify_timeout: Duration,
+    /// Lets a caller without a verified device identity obtain an enrollment
+    /// challenge by presenting Nitro capture evidence. Requires a loopback
+    /// `http_addr` behind attested-proxy and a non-empty `nitro_release_policy`;
+    /// startup fails otherwise. Off, the challenge route is unchanged.
+    #[arg(long, env, default_value = "false")]
+    pub enable_nitro_challenge: bool,
+    /// Approved capture-enclave releases, as a JSON array of
+    /// `{"pcr0","pcr1","pcr2","worker_sha384"}` objects of 96 lowercase hex
+    /// characters each. Empty approves nothing.
+    #[arg(long, env, default_value = "")]
+    pub nitro_release_policy: String,
+    /// Challenges one attested capture may obtain within `challenge_ttl`.
+    /// Above one so a legitimate retry can obtain a fresh challenge.
+    #[arg(long, env, value_parser = clap::value_parser!(u64).range(1..), default_value = "5")]
+    pub nitro_challenge_max_per_capture: u64,
+    /// Max concurrent Nitro attestation verifications; further requests are
+    /// shed with `503` rather than queued.
+    #[arg(long, env, default_value = "2")]
+    pub nitro_verify_concurrency: NonZeroUsize,
 }
 
 pub const TREE_DEPTH: usize = 30;
