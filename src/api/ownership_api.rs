@@ -186,6 +186,23 @@ pub async fn verify_ownership(
         return rejected();
     }
 
+    // A bound challenge only proves ownership of the subject it was issued
+    // for. Rejected before any dependency call, and without consuming it.
+    if nonce_object
+        .binding
+        .as_ref()
+        .is_some_and(|binding| binding.sub != credential_sub)
+    {
+        warn!(
+            stage = "challenge_validation",
+            error_kind = "challenge_subject_mismatch",
+            "challenge is bound to a different subject"
+        );
+        metrics::counter!("ownership_proof.rejected", "error" => "challenge_subject_mismatch")
+            .increment(1);
+        return rejected();
+    }
+
     match gateway.is_valid_root(proof.merkle_root).await {
         Ok(true) => {}
         Ok(false) => {
