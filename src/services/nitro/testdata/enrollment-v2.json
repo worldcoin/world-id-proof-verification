@@ -1,0 +1,18 @@
+{
+  "fields": {
+    "contract_version": "2",
+    "sub": "0x1f",
+    "capture_id": "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+    "timestamp": "1700000000",
+    "face_embedding_shares_0": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+    "face_embedding_shares_1": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+    "face_embedding_shares_2": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=",
+    "face_embedding_version": "2.0.0",
+    "face_embedding_type": "ghostfacenet_flipped_mean",
+    "face_embedding_inference_backend": "face-engine",
+    "pcp_version": "1",
+    "associated_data_hash": "0x0101010101010101010101010101010101010101010101010101010101010101"
+  },
+  "nonce_hex": "f572ab09e3f8a451b4b075352b30d29e711274dd0ab4ea4a99a2be95e7a951a5",
+  "reference": "Independent Python length-prefixed SHA-256 reference; not a Rust interoperability result."
+}
