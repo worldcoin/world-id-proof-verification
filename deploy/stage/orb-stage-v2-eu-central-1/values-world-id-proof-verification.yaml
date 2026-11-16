@@ -31,6 +31,7 @@ env:
   GATEWAY_URL: "https://gateway.id-infra.worldcoin.dev"
   GATEWAY_TIMEOUT: "2s"
   ENABLE_PROOF_GEN_ENDPOINT: "true"
+  ENROLLMENT_CHALLENGE_ALLOWED_ORIGINS: "https://authenticator.toolsforhumanity.dev"
   # Should be equal to the available amount of vCPUs in a pod -1 (to leave free compute for i/o)
   VERIFICATION_CONCURRENCY: "2"
   REDIS_URL:

@@ -1,4 +1,7 @@
-use crate::api::challenge_api::{issue_challenge, ChallengeState, NitroChallengeAuth};
+use crate::api::challenge_api::{
+    issue_challenge, issue_enrollment_challenge, ChallengeState, NitroChallengeAuth,
+    NITRO_ATTESTATION_HEADER,
+};
 use crate::api::generation_api::gen_proof;
 use crate::api::health_api::{health_check, ready_check};
 use crate::api::ownership_api::{verify_ownership, OwnershipVerificationState};
@@ -14,11 +17,14 @@ use crate::services::ownership_proof_verifier::DynOwnershipProofVerifier;
 use crate::services::proof_generator::{DynProofGenerator, SemaphoreProofGenerator};
 use crate::services::proof_verifier::DynProofVerifier;
 use axum::extract::FromRef;
+use axum::http::{header, HeaderName, Method};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
+use std::time::Duration;
 use telemetry_batteries::tracing::middleware::TraceLayer;
 use tokio::sync::Semaphore;
+use tower_http::cors::CorsLayer;
 
 /// Shared dependencies of the verify endpoints, built once in `main`.
 /// Injectable so tests can substitute in-memory fakes.
@@ -140,6 +146,20 @@ impl FromRef<AppState> for OwnershipVerificationState {
 pub fn create_app(cfg: Config, deps: AppDeps) -> Router {
     let logging_config = cfg.clone();
     let enable_proof_gen_endpoint = cfg.enable_proof_gen_endpoint;
+    let mut enrollment = post(issue_enrollment_challenge);
+    if deps.capture_verifier.is_some() && !cfg.enrollment_challenge_allowed_origins.is_empty() {
+        enrollment = enrollment.layer(
+            CorsLayer::new()
+                .allow_origin(cfg.enrollment_challenge_allowed_origins.clone())
+                .allow_methods([Method::POST])
+                .allow_headers([
+                    header::CONTENT_TYPE,
+                    HeaderName::from_static(NITRO_ATTESTATION_HEADER),
+                ])
+                .expose_headers([header::RETRY_AFTER])
+                .max_age(Duration::from_secs(600)),
+        );
+    }
     let verification_slots = Arc::new(Semaphore::new(cfg.verification_concurrency.get()));
     let nitro_challenge = deps.capture_verifier.map(|verifier| NitroChallengeAuth {
         verifier,
@@ -161,6 +181,7 @@ pub fn create_app(cfg: Config, deps: AppDeps) -> Router {
     let mut app = Router::new()
         .route("/api/v1/verify", post(verify_proof))
         .route("/api/v4/verify", post(verify_ownership))
+        .route("/api/v4/zkp/challenge/enrollment", enrollment)
         .route(
             "/api/v4/zkp/challenge/{challenge_type}",
             post(issue_challenge),
