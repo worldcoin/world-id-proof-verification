@@ -26,6 +26,7 @@ mod test_nitro_challenge {
     use crate::tests::support::{body_json, deps_with, test_config, MockNonceStore, RootVerdict};
 
     const ENROLLMENT: &str = "/api/v4/zkp/challenge/enrollment";
+    const ORIGIN: &str = "https://authenticator.toolsforhumanity.dev";
     const FIXTURE: &str = include_str!("../../services/nitro/testdata/enrollment-v2.json");
     const DOCUMENT: &[u8] = b"attestation document";
     const VERIFIED_DEVICE: [(&str, &str); 2] = [
@@ -414,5 +415,192 @@ mod test_nitro_challenge {
             [StatusCode::CREATED, StatusCode::SERVICE_UNAVAILABLE]
         );
         assert_eq!(verifier.calls(), 1);
+    }
+
+    #[tokio::test]
+    async fn cors_preflight_allows_only_the_enrollment_method_and_headers_without_issuing() {
+        let store = Arc::new(MockNonceStore::empty());
+        let verifier = MockCaptureVerifier::returning(Err(AttestationError::Trust));
+        let app = create_app(cors_config(), deps(store.clone(), Some(verifier.clone())));
+
+        for (method, headers) in [
+            ("POST", "content-type,x-nitro-attestation"),
+            ("DELETE", "authorization,x-unexpected"),
+        ] {
+            let response = preflight(&app, ENROLLMENT, ORIGIN, method, headers).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()["access-control-allow-origin"], ORIGIN);
+            assert_eq!(response.headers()["access-control-allow-methods"], "POST");
+            assert_eq!(
+                response.headers()["access-control-allow-headers"],
+                "content-type,x-nitro-attestation"
+            );
+            assert_eq!(response.headers()["access-control-max-age"], "600");
+            assert!(!response
+                .headers()
+                .contains_key("access-control-allow-credentials"));
+            assert!(response.headers()["vary"]
+                .to_str()
+                .unwrap()
+                .contains("origin"));
+        }
+        assert!(store.is_empty());
+        assert_eq!(verifier.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn cors_does_not_grant_access_to_other_origins_or_routes() {
+        let store = Arc::new(MockNonceStore::empty());
+        let verifier = MockCaptureVerifier::returning(Ok(()));
+        let app = create_app(cors_config(), deps(store.clone(), Some(verifier.clone())));
+
+        for origin in [
+            "null",
+            "*",
+            "https://web.world.org",
+            "http://authenticator.toolsforhumanity.dev",
+            "https://authenticator.toolsforhumanity.dev.attacker.test",
+            "https://authenticator.toolsforhumanity.dev:8443",
+        ] {
+            let response = preflight(&app, ENROLLMENT, origin, "POST", "x-nitro-attestation").await;
+            assert!(
+                !response
+                    .headers()
+                    .contains_key("access-control-allow-origin"),
+                "allowed {origin}"
+            );
+        }
+        for path in [
+            "/api/v4/verify",
+            "/api/v1/verify",
+            "/api/v4/zkp/challenge/teedi_migration",
+            "/health",
+        ] {
+            let response = preflight(&app, path, ORIGIN, "POST", "x-nitro-attestation").await;
+            assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+            assert!(
+                !response
+                    .headers()
+                    .contains_key("access-control-allow-origin"),
+                "allowed {path}"
+            );
+        }
+        assert!(store.is_empty());
+        assert_eq!(verifier.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn cors_success_and_errors_preserve_capture_authentication_and_expose_retry_after() {
+        let store = Arc::new(MockNonceStore::empty());
+        let verifier = MockCaptureVerifier::returning(Ok(()));
+        let app = create_app(
+            Config {
+                nitro_challenge_max_per_capture: 1,
+                ..cors_config()
+            },
+            deps(store.clone(), Some(verifier.clone())),
+        );
+        let mut headers = evidence();
+        headers.push(("origin", ORIGIN.to_owned()));
+        headers.push(("content-type", "application/json".to_owned()));
+
+        let unauthorized = post(&app, ENROLLMENT, &[("origin", ORIGIN)], vec![]).await;
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            unauthorized.headers()["access-control-allow-origin"],
+            ORIGIN
+        );
+        assert!(store.is_empty());
+        assert_eq!(verifier.calls(), 0);
+
+        let malformed = post(&app, ENROLLMENT, &headers, b"{}".to_vec()).await;
+        assert_eq!(malformed.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(malformed.headers()["access-control-allow-origin"], ORIGIN);
+        assert!(store.is_empty());
+
+        let success = post(&app, ENROLLMENT, &headers, capture()).await;
+        assert_eq!(success.status(), StatusCode::CREATED);
+        assert_eq!(success.headers()["access-control-allow-origin"], ORIGIN);
+        assert!(!success
+            .headers()
+            .contains_key("access-control-allow-credentials"));
+        assert!(store.only_entry().binding.is_some());
+        let body: serde_json::Value = body_json(success).await;
+        assert_eq!(body["challenge_type"], "enrollment");
+
+        let limited = post(&app, ENROLLMENT, &headers, capture()).await;
+        assert_eq!(limited.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(limited.headers()["access-control-allow-origin"], ORIGIN);
+        assert_eq!(
+            limited.headers()["access-control-expose-headers"],
+            "retry-after"
+        );
+        assert_eq!(limited.headers()["retry-after"], "600");
+        assert_eq!(message(limited).await, "challenge_limit_reached");
+    }
+
+    #[tokio::test]
+    async fn cors_is_disabled_without_an_allowlist_or_nitro_authentication() {
+        let store = Arc::new(MockNonceStore::empty());
+        let verifier = MockCaptureVerifier::returning(Ok(()));
+        for (config, capture_verifier) in [(test_config(), Some(verifier)), (cors_config(), None)] {
+            let app = create_app(config, deps(store.clone(), capture_verifier));
+            let response = preflight(&app, ENROLLMENT, ORIGIN, "POST", "x-nitro-attestation").await;
+            assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+            assert!(!response
+                .headers()
+                .contains_key("access-control-allow-origin"));
+        }
+        assert!(store.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cors_keeps_native_requests_and_unavailable_responses_intact() {
+        let store = Arc::new(MockNonceStore::empty());
+        let verifier = MockCaptureVerifier::returning(Err(AttestationError::Trust));
+        let app = create_app(cors_config(), deps(store.clone(), Some(verifier.clone())));
+        let native = post(&app, ENROLLMENT, &VERIFIED_DEVICE, vec![]).await;
+        assert_eq!(native.status(), StatusCode::CREATED);
+        assert!(!native.headers().contains_key("access-control-allow-origin"));
+        assert!(store.only_entry().binding.is_none());
+        assert_eq!(verifier.calls(), 0);
+
+        let unavailable = create_app(
+            cors_config(),
+            deps(
+                Arc::new(MockNonceStore::failing_count()),
+                Some(MockCaptureVerifier::returning(Ok(()))),
+            ),
+        );
+        let mut headers = evidence();
+        headers.push(("origin", ORIGIN.to_owned()));
+        let response = post(&unavailable, ENROLLMENT, &headers, capture()).await;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["access-control-allow-origin"], ORIGIN);
+    }
+
+    fn cors_config() -> Config {
+        Config {
+            enrollment_challenge_allowed_origins: vec![ORIGIN.parse().unwrap()],
+            ..test_config()
+        }
+    }
+
+    async fn preflight(
+        app: &Router,
+        path: &str,
+        origin: &str,
+        method: &str,
+        headers: &str,
+    ) -> Response {
+        let request = Request::builder()
+            .method("OPTIONS")
+            .uri(path)
+            .header("origin", origin)
+            .header("access-control-request-method", method)
+            .header("access-control-request-headers", headers)
+            .body(Body::empty())
+            .unwrap();
+        app.clone().oneshot(request).await.unwrap()
     }
 }

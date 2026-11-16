@@ -128,6 +128,23 @@ impl Rejection {
     }
 }
 
+/// Uses the enrollment-only route while sharing challenge authentication and issuance.
+pub async fn issue_enrollment_challenge(
+    state: State<ChallengeState>,
+    request_log: Extension<RequestLogSpan>,
+    headers: HeaderMap,
+    body: Body,
+) -> Response {
+    issue_challenge(
+        state,
+        request_log,
+        Ok(Path(ChallengeType::Enrollment)),
+        headers,
+        body,
+    )
+    .await
+}
+
 /// Issues a single-use challenge. An unknown `challenge_type` is logged and
 /// returned as the `Path<ChallengeType>` extractor's `400` response.
 ///

@@ -326,6 +326,7 @@ pub fn test_config() -> Config {
         nitro_release_policy: String::new(),
         nitro_challenge_max_per_capture: 5,
         nitro_verify_concurrency: NonZeroUsize::new(2).unwrap(),
+        enrollment_challenge_allowed_origins: Vec::new(),
     }
 }
 

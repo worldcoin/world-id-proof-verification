@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
+use axum::http::HeaderValue;
 use clap::Parser;
 
 /// A struct representing the configuration options for the proof verification service.
@@ -60,6 +61,7 @@ use clap::Parser;
 ///     nitro_release_policy: String::new(),
 ///     nitro_challenge_max_per_capture: 5,
 ///     nitro_verify_concurrency: std::num::NonZeroUsize::new(2).unwrap(),
+///     enrollment_challenge_allowed_origins: Vec::new(),
 /// };
 /// assert_eq!(config.srv_env, "prod");
 /// assert_eq!(config.srv_name, "world-id-proof-verification");
@@ -158,9 +160,25 @@ pub struct Config {
     /// shed with `503` rather than queued.
     #[arg(long, env, default_value = "2")]
     pub nitro_verify_concurrency: NonZeroUsize,
+    /// Comma-separated exact HTTP(S) origins allowed to request enrollment challenges.
+    /// Empty disables CORS; the policy is only active with Nitro capture authentication.
+    #[arg(long, env, value_delimiter = ',', value_parser = parse_origin)]
+    pub enrollment_challenge_allowed_origins: Vec<HeaderValue>,
 }
 
 pub const TREE_DEPTH: usize = 30;
+
+fn parse_origin(value: &str) -> Result<HeaderValue, String> {
+    let invalid = || "expected a canonical HTTP(S) origin without a path or wildcard".to_string();
+    let url = reqwest::Url::parse(value).map_err(|_| invalid())?;
+    if !matches!(url.scheme(), "http" | "https")
+        || value.contains('*')
+        || url.origin().ascii_serialization() != value
+    {
+        return Err(invalid());
+    }
+    HeaderValue::from_str(value).map_err(|_| invalid())
+}
 
 #[cfg(test)]
 mod tests {
@@ -183,5 +201,57 @@ mod tests {
         assert!(
             Config::try_parse_from(args.into_iter().chain(["--http-addr", "invalid"])).is_err()
         );
+    }
+
+    #[test]
+    fn enrollment_cors_requires_exact_origins_and_defaults_to_disabled() {
+        let args = [
+            "svc",
+            "--gateway-url",
+            "http://gateway.test",
+            "--jwt-trusted-keys",
+            "{}",
+        ];
+        assert!(Config::try_parse_from(args)
+            .unwrap()
+            .enrollment_challenge_allowed_origins
+            .is_empty());
+
+        let origins = "https://authenticator.toolsforhumanity.dev,http://localhost:3000";
+        let cfg = Config::try_parse_from(
+            args.into_iter()
+                .chain(["--enrollment-challenge-allowed-origins", origins]),
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.enrollment_challenge_allowed_origins,
+            [
+                HeaderValue::from_static("https://authenticator.toolsforhumanity.dev"),
+                HeaderValue::from_static("http://localhost:3000"),
+            ]
+        );
+
+        for invalid in [
+            "*",
+            "null",
+            "https://*.world.org",
+            "https://web.world.org/",
+            "https://web.world.org/path",
+            "https://web.world.org?query=1",
+            "https://web.world.org#fragment",
+            "https://user@web.world.org",
+            "https://WEB.world.org",
+            "https://web.world.org:443",
+            "file://web.world.org",
+        ] {
+            assert!(
+                Config::try_parse_from(
+                    args.into_iter()
+                        .chain(["--enrollment-challenge-allowed-origins", invalid,])
+                )
+                .is_err(),
+                "accepted {invalid}"
+            );
+        }
     }
 }
