@@ -136,12 +136,15 @@ noirup --version 1.0.0-beta.26
 cargo build --release
 ```
 
-Ownership verification uses `world-id-proof` **0.18.0** (ProveKit **1.0.3**).
-The HTTP request/response format is unchanged, but **ownership proofs generated with 0.14.0
-are incompatible**: a real proof accepted by 0.14.0 was rejected by the 0.18.0 release verifier
-with `Verification("while verifying sumcheck")`. Coordinate the prover upgrade with callers
-before deploying this version, or retain a separate legacy verification path.
-`cargo test --release --locked --example verify_bench` checks a real 0.18.0 proof's CBOR
+Ownership verification uses `world-id-proof` and `world-id-primitives` **0.22.0**
+(ProveKit **1.0.3**, Noir **1.0.0-beta.26**). The HTTP request/response format is
+unchanged. Compared with 0.18.0, the ownership circuit removes the public tree-depth
+input and changes the signature domain from `WIP103` to `WORLD-ID/WIP-103/SIGN`.
+**Proofs and signatures generated for 0.18.0 are incompatible**; the earlier 0.14.0
+proof format is also unsupported. Coordinate compatible 0.22.0 prover artifacts
+with callers before deployment. Avoid mixed verifier versions during rollout;
+rolling back also requires matching the callers' prover version.
+`cargo test --release --locked --example verify_bench` checks a real 0.22.0 proof's CBOR
 roundtrip, input binding, tamper rejection, and compatibility with the existing size limits.
 
 ### Known limitation: ownership verification in debug builds

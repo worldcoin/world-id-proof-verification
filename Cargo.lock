@@ -3978,6 +3978,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "jose-b64"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bec69375368709666b21c76965ce67549f2d2db7605f1f8707d17c9656801b56"
+dependencies = [
+ "base64ct",
+ "serde",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "jose-jwa"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ab78e053fe886a351d67cf0d194c000f9d0dcb92906eb34d853d7e758a4b3a7"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "jose-jwk"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "280fa263807fe0782ecb6f2baadc28dffc04e00558a58e33bfdb801d11fd58e7"
+dependencies = [
+ "jose-b64",
+ "jose-jwa",
+ "p256 0.13.2",
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5869,7 +5903,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7592,9 +7626,9 @@ dependencies = [
 
 [[package]]
 name = "taceo-ark-serde-compat"
-version = "0.6.1"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f7a255d21a01f083cf373ff6b4903f9dafad1e0a2a1a2119a4cee971d1bb995"
+checksum = "0d338a8f08216a0982c20bd301f11a4fe620e99e8bdc6b8e8be20ec66eaf158d"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -9008,13 +9042,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "world-id-primitives"
-version = "0.18.0"
+name = "world-id-flamingo"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edbad3dc3bf1609122ac8995adeb06b455978bdcf99fc8860225a55baac0f6c8"
+checksum = "e497d776c936939426e1c0a063ff4b9dc4ebc88f13f38859e0f028384ff761c9"
+dependencies = [
+ "base64 0.22.1",
+ "coset",
+ "hex",
+ "jose-jwk",
+ "p256 0.13.2",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "taceo-eddsa-babyjubjub",
+ "thiserror 2.0.20",
+ "world-id-primitives",
+]
+
+[[package]]
+name = "world-id-primitives"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47fe8ca236ce89e3bb5cf79bff9b7d747fd85e3eed9a2c58d5fa53a9bafa004b"
 dependencies = [
  "alloy",
  "alloy-primitives",
+ "alloy-sol-types",
  "ark-bn254",
  "ark-ff 0.6.0",
  "arrayvec",
@@ -9048,9 +9102,9 @@ dependencies = [
 
 [[package]]
 name = "world-id-proof"
-version = "0.18.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd6b48573d53b763ee2c84a0f0098a6e33f7dc44fd36fb8de061de2d7d9e9573"
+checksum = "a056b5e44a935f4294fb6a00775180a3343ce5f90a4b4fbb2bf91d892ceb3177"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -9082,6 +9136,7 @@ dependencies = [
  "tar",
  "thiserror 2.0.20",
  "tracing",
+ "world-id-flamingo",
  "world-id-primitives",
  "zeroize",
  "zstd",
@@ -9263,6 +9318,7 @@ version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
 dependencies = [
+ "serde",
  "zeroize_derive",
 ]
 
