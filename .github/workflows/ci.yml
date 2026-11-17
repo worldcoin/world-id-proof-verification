@@ -59,7 +59,7 @@ jobs:
       - name: Install Noir toolchain (nargo)
         shell: bash
         run: |
-          # world-id-proof 0.18.0 requires this exact nargo version.
+          # world-id-proof 0.22.0 requires this exact nargo version.
           mkdir -p "$HOME/.nargo/bin"
           noirup_script="$(mktemp)"
           trap 'rm -f "$noirup_script"' EXIT
@@ -103,7 +103,7 @@ jobs:
       - name: Install Noir toolchain (nargo)
         shell: bash
         run: |
-          # world-id-proof 0.18.0 requires this exact nargo version.
+          # world-id-proof 0.22.0 requires this exact nargo version.
           mkdir -p "$HOME/.nargo/bin"
           noirup_script="$(mktemp)"
           trap 'rm -f "$noirup_script"' EXIT

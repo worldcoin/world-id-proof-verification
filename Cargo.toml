@@ -64,8 +64,8 @@ jsonwebtoken = "9"
 # falling back to a plain integer for backward-compatible env values.
 bytesize = "2.4.2"
 # Pin the ownership circuit and proof backend; upgrades require compatibility checks.
-world-id-proof = { version = "=0.18.0", features = ["embed-ownership-verifier"] }
-world-id-primitives = "=0.18.0"
+world-id-proof = { version = "=0.22.0", features = ["embed-ownership-verifier"] }
+world-id-primitives = "=0.22.0"
 hex = "0.4.3"
 
 [dev-dependencies]
@@ -80,7 +80,7 @@ syn = { version = "2", features = ["full", "visit"] }
 # axum analogue of actix's `test::call_service`.
 tower = { version = "0.5", features = ["util"] }
 # Fixture construction for the ownership proof: the Poseidon2 permutations and the BabyJubJub
-# base field. Versions match `world-id-proof` 0.18.0 so a single set of field types
+# base field. Versions match `world-id-proof` 0.22.0 so a single set of field types
 # unifies across the graph.
 poseidon2 = { version = "=0.3.0", package = "taceo-poseidon2" }
 ark-babyjubjub = { version = "=0.6.0", package = "taceo-ark-babyjubjub" }
@@ -88,7 +88,7 @@ ark-ff = "0.6"
 # Process CPU-time measurement, to compare against wall-clock and derive effective core usage.
 cpu-time = "1"
 
-world-id-proof = { version = "=0.18.0", features = ["embed-noir-artifacts"] }
+world-id-proof = { version = "=0.22.0", features = ["embed-noir-artifacts"] }
 
 [workspace]
 # The root package stays the deployable service. `api-types` is the shared HTTP
