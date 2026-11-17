@@ -15,6 +15,10 @@ ignore = [
     # Review by 2026-11-19: https://linear.app/worldcoin/issue/POP-4487
     # Expires 2026-11-20, enforced by CI's waiver check.
     { id = "RUSTSEC-2026-0387", reason = "No current service calls to affected RustCrypto secret-scalar helpers; ownership/Semaphore use Arkworks, JWT verification uses ring, and the KMS client uses patched p256 0.14. Remove after upstream Alloy/world-id-primitives migrations; reassess if usage changes. Tracked in POP-4487." },
+    # Maintenance notices only; no patched versions. Context is mirrored in .cargo/audit.toml.
+    # Review by 2026-11-30; expires 2026-12-01, enforced by CI's waiver check.
+    { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained but is used for runtime RFC3339 freshness checks and shared API timestamps. Temporarily retain in release PR #15; remove after migrating workspace-direct usage to a maintained alternative with timestamp serialization and freshness compatibility checks." },
+    { id = "RUSTSEC-2026-0542", reason = "humantime is unmaintained but only parses startup duration configuration. Temporarily retain in release PR #15; remove after migrating workspace-direct usage to a maintained parser with equivalent accepted duration syntax." },
 ]
 
 [bans]

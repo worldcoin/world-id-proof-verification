@@ -169,18 +169,22 @@ jobs:
           from pathlib import Path
           import tomllib
 
-          advisory = "RUSTSEC-2026-0387"
-          expires = date(2026, 11, 20)
+          waivers = {
+              "RUSTSEC-2026-0387": (date(2026, 11, 20), "resolve POP-4487"),
+              "RUSTSEC-2026-0543": (date(2026, 12, 1), "migrate direct chrono usage"),
+              "RUSTSEC-2026-0542": (date(2026, 12, 1), "migrate direct humantime usage"),
+          }
           today = datetime.now(timezone.utc).date()
           for filename in (".cargo/audit.toml", "deny.toml"):
               config = tomllib.loads(Path(filename).read_text())
               ignored = config.get("advisories", {}).get("ignore", [])
               ids = [entry if isinstance(entry, str) else entry["id"] for entry in ignored]
-              if advisory in ids and today >= expires:
-                  raise SystemExit(
-                      f"{filename}: {advisory} waiver expired on {expires}; "
-                      "resolve POP-4487 and remove the exception or explicitly reassess it."
-                  )
+              for advisory, (expires, action) in waivers.items():
+                  if advisory in ids and today >= expires:
+                      raise SystemExit(
+                          f"{filename}: {advisory} waiver expired on {expires}; "
+                          f"{action} and remove the exception or explicitly reassess it."
+                      )
           PY
 
       # Pin via rustup so cargo resolves to the same MSRV used by build and lint jobs.
