@@ -16,4 +16,13 @@ ignore = [
     # Remove when upstream migrations eliminate affected crypto-bigint versions.
     # Reassess immediately if RustCrypto secret-scalar operations become reachable.
     "RUSTSEC-2026-0387",
+    # RUSTSEC-2026-0543 / RUSTSEC-2026-0542 are maintenance notices, with no
+    # patched versions. chrono handles runtime RFC3339 freshness checks and
+    # shared API timestamps; humantime parses startup duration configuration.
+    # Retain temporarily to avoid a timestamp/config contract migration in
+    # release PR #15. Remove after migrating the workspace's direct dependencies
+    # to maintained alternatives and validating wire/config/freshness behavior.
+    # Review by 2026-11-30; expires 2026-12-01, enforced by CI's waiver check.
+    "RUSTSEC-2026-0543",
+    "RUSTSEC-2026-0542",
 ]

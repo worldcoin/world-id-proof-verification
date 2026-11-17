@@ -1,5 +1,5 @@
 # Challenge requests require signing through attested-proxy.
-image: "ghcr.io/worldcoin/world-id-proof-verification:1fe0283286526bb4c00069770bb24802115d72c6"
+image: "ghcr.io/worldcoin/world-id-proof-verification:b7de17bee9d6c2e259ab84efb9eaf6e44e43775d"
 
 replicaCount: 2
 # Override the chart's small-deployment strategy to retain serving replicas.
