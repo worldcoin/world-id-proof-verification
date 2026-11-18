@@ -29,9 +29,8 @@ env:
   SRV_ENV: "prod"
   RUST_LOG: "info"
   SRV_NAME: "world-id-proof-verification"
-  GATEWAY_URL: "https://gateway.id-infra.worldcoin.dev"
+  GATEWAY_URL: "https://gateway.id-infra.world.org"
   GATEWAY_TIMEOUT: "2s"
-  ENABLE_PROOF_GEN_ENDPOINT: "true"
   # Should be equal to the available amount of vCPUs in a pod -1 (to leave free compute for i/o)
   VERIFICATION_CONCURRENCY: "5"
   REDIS_URL:
