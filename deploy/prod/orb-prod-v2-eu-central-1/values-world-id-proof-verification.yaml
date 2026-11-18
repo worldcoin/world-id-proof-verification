@@ -184,7 +184,7 @@ httpRoutes:
       namespace: "kube-system"
       sectionName: "https"
     hostnames:
-      - world-id-proof-verification.orb.worldcoin.org
+      - world-id-proof-verification-srv.orb.worldcoin.org
     port: 80
     rules:
       - matches:
