@@ -170,7 +170,7 @@ jobs:
           import tomllib
 
           waivers = {
-              "RUSTSEC-2026-0387": (date(2026, 11, 20), "resolve POP-4487"),
+              "RUSTSEC-2026-0387": (date(2026, 12, 4), "resolve POP-4487"),
               "RUSTSEC-2026-0543": (date(2026, 12, 1), "migrate direct chrono usage"),
               "RUSTSEC-2026-0542": (date(2026, 12, 1), "migrate direct humantime usage"),
           }
