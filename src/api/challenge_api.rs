@@ -48,6 +48,7 @@ pub async fn issue_challenge(
         created_at,
         expires_at,
         issuer: ISSUER.to_string(),
+        binding: None,
     };
 
     match nonce_store
