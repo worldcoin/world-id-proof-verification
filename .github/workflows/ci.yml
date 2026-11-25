@@ -71,7 +71,8 @@ jobs:
         run: cargo build --locked --all-targets
 
       - name: Run tests
-        run: cargo test --locked --workspace --all-targets
+        # Concurrent test binary links can exceed the runner's memory limit.
+        run: cargo test --locked --workspace --all-targets --jobs 1
 
   lint:
     name: Format and lint
