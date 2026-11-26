@@ -95,11 +95,11 @@ sidecars:
         path: /health
         port: admin
 
-# Provision the public CI issuer JWKS in the application Secret before rollout.
+# Provision the public CI issuer JWKS in the application-config ConfigMap before rollout.
 additionalVolumes:
   - name: ci-ag-jwks
-    secret:
-      secretName: application
+    configMap:
+      name: application-config
       items:
         - key: CI_CANONICAL_REQUEST_VERIFICATION_JWKS
           path: jwks.json

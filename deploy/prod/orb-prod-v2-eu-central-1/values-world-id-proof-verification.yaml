@@ -40,9 +40,9 @@ env:
         name: application
   JWT_TRUSTED_KEYS:
     valueFrom:
-      secretKeyRef:
+      configMapKeyRef:
         key: JWT_TRUSTED_KEYS
-        name: application
+        name: application-config
 
 
 imagePullSecrets:
